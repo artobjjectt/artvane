@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artvane — прототип</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg: #0a0a0a;
+    --surface: #141412;
+    --surface-2: #1c1c19;
+    --fg: #f2f0ea;
+    --fg-dim: #8c8c86;
+    --line: #2a2a26;
+    --accent: #e6432a;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--fg);
+    font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent); color:#0a0a0a; }
+
+  header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px;
+    background:rgba(10,10,10,0.88);
+    backdrop-filter: blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .wordmark{
+    font-family:'Fraunces', serif; font-style:italic; font-weight:500;
+    font-size:24px; letter-spacing:0.5px; color:var(--fg);
+  }
+  .wordmark span.dot{ color:var(--accent); font-style:normal; }
+  nav.top-actions{ display:flex; align-items:center; gap:10px; }
+  .icon-btn{
+    background:none; border:1px solid var(--line); color:var(--fg-dim);
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:border-color .2s, color .2s;
+    font-family:'IBM Plex Mono', monospace; font-size:13px; position:relative;
+  }
+  .icon-btn:hover{ border-color:var(--fg-dim); color:var(--fg); }
+  .badge{
+    position:absolute; top:-4px; right:-4px; background:var(--accent);
+    color:#fff; font-size:9px; border-radius:8px; padding:1px 5px;
+    font-family:'IBM Plex Mono', monospace; display:none;
+  }
+  .badge.show{ display:block; }
+  .btn-primary{
+    background:var(--fg); color:#0a0a0a; border:none;
+    padding:8px 16px; border-radius:20px; font-weight:600; font-size:13px;
+    cursor:pointer; transition:transform .15s ease, background .2s;
+  }
+  .btn-primary:hover{ transform:translateY(-1px); background:#fff; }
+  .btn-primary:disabled{ opacity:0.5; cursor:default; transform:none; }
+  .btn-ghost{
+    background:none; color:var(--fg-dim); border:1px solid var(--line);
+    padding:8px 14px; border-radius:20px; font-size:13px; cursor:pointer;
+  }
+  .btn-ghost:hover{ color:var(--fg); border-color:var(--fg-dim); }
+
+  main{ max-width:520px; margin:0 auto; padding:26px 18px 100px; }
+  .feed-header{ margin-bottom:20px; display:flex; align-items:baseline; justify-content:space-between; }
+  .feed-header .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--accent);
+  }
+  .feed-header h1{ font-family:'Fraunces', serif; font-weight:400; font-size:28px; margin:4px 0 0; }
+
+  .grid{ display:flex; flex-direction:column; gap:20px; }
+
+  .frame{
+    background:var(--surface); border:1px solid var(--line); border-radius:2px;
+    overflow:hidden; position:relative;
+  }
+  .frame-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 12px; font-family:'IBM Plex Mono', monospace; font-size:10.5px;
+    color:var(--fg-dim); letter-spacing:0.5px; border-bottom:1px dashed var(--line);
+  }
+  .frame img{
+    display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
+    filter: grayscale(80%) contrast(1.05); transition: filter .35s ease; background:#000;
+  }
+  .frame:hover img{ filter:grayscale(35%) contrast(1.05); }
+  .frame-info{ padding:11px 13px 6px; }
+  .frame-info .cap{ font-size:13.5px; color:var(--fg); line-height:1.4; margin:0 0 4px; }
+  .frame-info .author{ font-size:11.5px; color:var(--fg-dim); margin:0; }
+  .frame-actions{ display:flex; align-items:center; gap:16px; padding:6px 13px 13px; }
+  .action{
+    display:flex; align-items:center; gap:6px; background:none; border:none;
+    color:var(--fg-dim); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:12px;
+  }
+  .action:hover{ color:var(--fg); }
+  .action.liked{ color:var(--accent); }
+  .action.reposted{ color:var(--fg); }
+  .mark-wrap{ position:relative; width:18px; height:18px; display:flex; align-items:center; justify-content:center; }
+  .mark-wrap svg{ position:absolute; inset:0; overflow:visible; }
+  .mark-circle{
+    fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linecap:round;
+    stroke-dasharray:70; stroke-dashoffset:70; transition:stroke-dashoffset .35s ease;
+  }
+  .liked .mark-circle{ stroke-dashoffset:0; }
+  .mark-dot{ width:5px; height:5px; border:1.6px solid var(--fg-dim); border-radius:50%; }
+  .liked .mark-dot{ border-color:var(--accent); background:var(--accent); }
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--fg-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:13px; border:1px dashed var(--line); border-radius:2px;
+  }
+
+  /* ---------- Overlay / Modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(10,10,10,0.72); backdrop-filter: blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:100; padding:16px;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:var(--surface); border:1px solid var(--line); width:100%; max-width:400px;
+    padding:28px 24px 24px; border-radius:3px; position:relative; max-height:86vh; overflow-y:auto;
+  }
+  .modal .close{
+    position:absolute; top:14px; right:16px; background:none; border:none;
+    color:var(--fg-dim); font-size:18px; cursor:pointer; font-family:'IBM Plex Mono', monospace;
+  }
+  .modal .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--accent); display:block; margin-bottom:8px;
+  }
+  .modal h2{ font-family:'Fraunces', serif; font-weight:400; font-size:24px; margin:0 0 18px; }
+  .field{ margin-bottom:13px; }
+  .field label{
+    display:block; font-size:11px; color:var(--fg-dim); margin-bottom:6px;
+    font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;
+  }
+  .field input, .field textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--fg); padding:10px 12px; border-radius:2px; font-size:14px;
+    font-family:'Inter', sans-serif; resize:vertical;
+  }
+  .field input:focus, .field textarea:focus{ outline:none; border-color:var(--fg-dim); }
+  .field-error{ color:var(--accent); font-size:11.5px; margin-top:5px; display:none; }
+  .field-error.show{ display:block; }
+  .modal .btn-primary{ width:100%; padding:11px; margin-top:6px; font-size:14px; }
+  .switch-line{ text-align:center; margin-top:14px; font-size:13px; color:var(--fg-dim); }
+  .switch-line button{
+    background:none; border:none; color:var(--fg); text-decoration:underline;
+    cursor:pointer; font-size:13px; font-family:'Inter', sans-serif; padding:0;
+  }
+
+  /* ---------- DM ---------- */
+  .user-list{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
+  .user-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:2px;
+    cursor:pointer; font-size:13.5px;
+  }
+  .user-row:hover{ border-color:var(--fg-dim); }
+  .user-row .unread-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); display:none; }
+  .user-row.has-unread .unread-dot{ display:block; }
+
+  .chat-modal .modal{ display:flex; flex-direction:column; height:70vh; max-height:560px; padding:0; }
+  .chat-head{
+    display:flex; align-items:center; gap:10px; padding:16px 18px;
+    border-bottom:1px solid var(--line); font-family:'IBM Plex Mono', monospace; font-size:13px;
+  }
+  .chat-back{ background:none; border:none; color:var(--fg-dim); cursor:pointer; font-size:16px; }
+  .chat-messages{ flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:9px; }
+  .msg{ max-width:78%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.4; }
+  .msg.mine{ align-self:flex-end; background:var(--fg); color:#0a0a0a; border-bottom-right-radius:3px; }
+  .msg.theirs{ align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-bottom-left-radius:3px; }
+  .msg-time{ font-size:9.5px; opacity:0.6; margin-top:3px; font-family:'IBM Plex Mono', monospace; }
+  .chat-input-row{
+    display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--line);
+  }
+  .chat-input-row input{
+    flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--fg);
+    padding:10px 12px; border-radius:20px; font-size:13.5px; font-family:'Inter', sans-serif;
+  }
+  .chat-input-row input:focus{ outline:none; border-color:var(--fg-dim); }
+  .chat-send{
+    background:var(--fg); color:#0a0a0a; border:none; border-radius:50%;
+    width:38px; height:38px; cursor:pointer; font-size:15px; flex-shrink:0;
+  }
+  .chat-send:disabled{ opacity:0.4; }
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--fg); color:#0a0a0a; padding:11px 18px; border-radius:20px;
+    font-size:13px; font-weight:600; opacity:0; transition:opacity .25s ease, transform .25s ease;
+    pointer-events:none; z-index:200; max-width:90vw; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .spinner{
+    display:inline-block; width:14px; height:14px; border:2px solid var(--fg-dim);
+    border-top-color:var(--fg); border-radius:50%; animation:spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  footer{
+    text-align:center; padding:24px; color:var(--fg-dim); font-size:11.5px;
+    font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;
+  }
+  .footer-warning{ color:var(--fg-dim); opacity:0.7; max-width:400px; margin:6px auto 0; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Art<span class="dot">·</span>vane</div>
+  <nav class="top-actions" id="topActions"></nav>
+</header>
+
+<main>
+  <div class="feed-header">
+    <div>
+      <span class="eyebrow">Контрольный лист · лента</span>
+      <h1>Artvane</h1>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<footer>
+  Artvane — прототип<br>
+  <span class="footer-warning">Демо-версия: пароли и данные видят все, у кого есть ссылка. Не используйте настоящие пароли.</span>
+</footer>
+
+<!-- Auth modal -->
+<div class="overlay" id="authOverlay">
+  <div class="modal">
+    <button class="close" data-close="authOverlay">✕</button>
+    <span class="eyebrow" id="authEyebrow">Шаг 1</span>
+    <h2 id="authTitle">Вход</h2>
+    <div class="field">
+      <label>Имя пользователя</label>
+      <input type="text" id="authUsername" placeholder="например, mira">
+    </div>
+    <div class="field">
+      <label>Пароль</label>
+      <input type="password" id="authPassword" placeholder="••••••••">
+    </div>
+    <div class="field-error" id="authError">Неверные данные</div>
+    <button class="btn-primary" id="authSubmit">Войти</button>
+    <div class="switch-line">
+      <span id="authSwitchText">Нет аккаунта?</span>
+      <button id="authSwitchBtn">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- New post modal -->
+<div class="overlay" id="postOverlay">
+  <div class="modal">
+    <button class="close" data-close="postOverlay">✕</button>
+    <span class="eyebrow">Новый кадр</span>
+    <h2>Добавить пост</h2>
+    <div class="field">
+      <label>Ссылка на фото</label>
+      <input type="url" id="postImg" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label>Подпись</label>
+      <textarea id="postCap" rows="3" placeholder="Пара слов о кадре"></textarea>
+    </div>
+    <div class="field-error" id="postError">Заполните оба поля</div>
+    <button class="btn-primary" id="postSubmit">Опубликовать</button>
+  </div>
+</div>
+
+<!-- DM list modal -->
+<div class="overlay" id="dmListOverlay">
+  <div class="modal">
+    <button class="close" data-close="dmListOverlay">✕</button>
+    <span class="eyebrow">Сообщения</span>
+    <h2>Написать</h2>
+    <div class="user-list" id="userList"></div>
+  </div>
+</div>
+
+<!-- Chat modal -->
+<div class="overlay chat-modal" id="chatOverlay">
+  <div class="modal">
+    <div class="chat-head">
+      <button class="chat-back" id="chatBack">←</button>
+      <span id="chatWithName">—</span>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Сообщение...">
+      <button class="chat-send" id="chatSend">➤</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== Supabase setup ===================== */
+const SUPABASE_URL = 'https://lnnflsqyalgqykmqyqfl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_jcAEoHzol11uJRURyJ6V5g_1DqOWs9u';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ===================== State ===================== */
+let currentUser = null; // {username}
+let postsCache = [];
+let dmWithUser = null;
+let feedPollTimer = null;
+
+const $ = (id) => document.getElementById(id);
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function openOverlay(id){ $(id).classList.add('open'); }
+function closeOverlay(id){ $(id).classList.remove('open'); }
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
+});
+[ 'authOverlay','postOverlay','dmListOverlay' ].forEach(id => {
+  $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
+});
+
+/* ===================== Users ===================== */
+async function findUser(username){
+  const { data, error } = await sb.from('users').select('*').eq('username', username).maybeSingle();
+  if(error){ console.error(error); return null; }
+  return data;
+}
+async function createUser(username, password){
+  const { error } = await sb.from('users').insert({ username, password });
+  return !error;
+}
+async function listOtherUsers(excludeUsername){
+  const { data, error } = await sb.from('users').select('username').neq('username', excludeUsername);
+  if(error){ console.error(error); return []; }
+  return data.map(u => u.username);
+}
+
+/* ===================== Posts ===================== */
+async function loadPosts(){
+  const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
+  if(error){ console.error(error); postsCache = []; return postsCache; }
+  postsCache = data.map(p => ({
+    id: p.id, img: p.img, cap: p.cap, author: p.author,
+    ts: new Date(p.created_at).getTime(),
+    likedBy: p.liked_by || [], repostedBy: p.reposted_by || []
+  }));
+  return postsCache;
+}
+async function insertPost(author, img, cap){
+  const { error } = await sb.from('posts').insert({ author, img, cap, liked_by: [], reposted_by: [] });
+  return !error;
+}
+async function updatePostReactions(id, likedBy, repostedBy){
+  const { error } = await sb.from('posts').update({ liked_by: likedBy, reposted_by: repostedBy }).eq('id', id);
+  return !error;
+}
+
+/* ===================== Messages ===================== */
+async function loadThread(a, b){
+  const { data, error } = await sb.from('messages')
+    .select('*')
+    .or(`and(from_user.eq.${a},to_user.eq.${b}),and(from_user.eq.${b},to_user.eq.${a})`)
+    .order('created_at', { ascending: true });
+  if(error){ console.error(error); return []; }
+  return data.map(m => ({ from: m.from_user, text: m.text, ts: new Date(m.created_at).getTime() }));
+}
+async function sendMessage(from, to, text){
+  const { error } = await sb.from('messages').insert({ from_user: from, to_user: to, text });
+  return !error;
+}
+
+function frameNumber(i){ return String(i+1).padStart(3,'0') + 'A'; }
+
+function renderTopBar(){
+  const nav = $('topActions');
+  if(currentUser){
+    nav.innerHTML = `
+      <button class="icon-btn" id="dmBtn" title="Сообщения">✉<span class="badge" id="dmBadge"></span></button>
+      <button class="btn-ghost" id="newPostBtn">+ Пост</button>
+      <button class="btn-ghost" id="logoutBtn">${currentUser.username}</button>
+    `;
+    $('dmBtn').addEventListener('click', openDmList);
+    $('newPostBtn').addEventListener('click', () => openOverlay('postOverlay'));
+    $('logoutBtn').addEventListener('click', logout);
+  } else {
+    nav.innerHTML = `<button class="btn-primary" id="loginBtn">Войти</button>`;
+    $('loginBtn').addEventListener('click', () => { setAuthMode('login'); openOverlay('authOverlay'); });
+  }
+}
+
+function logout(){
+  currentUser = null;
+  renderTopBar();
+  showToast('Вы вышли');
+}
+
+function renderFeed(){
+  const grid = $('grid');
+  if(postsCache.length === 0){
+    grid.innerHTML = `<div class="empty-state">Пока нет ни одного поста.<br>Войдите и добавьте первый кадр.</div>`;
+    return;
+  }
+  const sorted = [...postsCache].sort((a,b) => b.ts - a.ts);
+  grid.innerHTML = sorted.map((p) => {
+    const idx = postsCache.indexOf(p);
+    const liked = currentUser && p.likedBy && p.likedBy.includes(currentUser.username);
+    const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
+    return `
+      <div class="frame">
+        <div class="frame-strip">
+          <span>№ ${frameNumber(idx)}</span>
+          <span>${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
+        </div>
+        <img src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
+        <div class="frame-info">
+          <p class="cap">${escapeHtml(p.cap)}</p>
+          <p class="author">@${escapeHtml(p.author)}</p>
+        </div>
+        <div class="frame-actions">
+          <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
+            <span class="mark-wrap">
+              <svg viewBox="0 0 20 20"><circle class="mark-circle" cx="10" cy="10" r="8"/></svg>
+              <span class="mark-dot"></span>
+            </span>
+            <span>${(p.likedBy||[]).length}</span>
+          </button>
+          <button class="action repost-btn ${reposted ? 'reposted' : ''}" data-idx="${idx}">
+            ⇄ <span>${(p.repostedBy||[]).length}</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+$('grid').addEventListener('click', async (e) => {
+  const likeBtn = e.target.closest('.like-btn');
+  const repostBtn = e.target.closest('.repost-btn');
+  if(!currentUser && (likeBtn || repostBtn)){
+    showToast('Войдите, чтобы взаимодействовать с постами');
+    return;
+  }
+  if(likeBtn){
+    const idx = +likeBtn.dataset.idx;
+    const post = postsCache[idx];
+    post.likedBy = post.likedBy || [];
+    const pos = post.likedBy.indexOf(currentUser.username);
+    if(pos === -1) post.likedBy.push(currentUser.username);
+    else post.likedBy.splice(pos, 1);
+    renderFeed();
+    await updatePostReactions(post.id, post.likedBy, post.repostedBy);
+  }
+  if(repostBtn){
+    const idx = +repostBtn.dataset.idx;
+    const post = postsCache[idx];
+    post.repostedBy = post.repostedBy || [];
+    const pos = post.repostedBy.indexOf(currentUser.username);
+    if(pos === -1){ post.repostedBy.push(currentUser.username); showToast('Репост опубликован'); }
+    else post.repostedBy.splice(pos, 1);
+    renderFeed();
+    await updatePostReactions(post.id, post.likedBy, post.repostedBy);
+  }
+});
+
+/* ===================== Auth ===================== */
+let authMode = 'login';
+function setAuthMode(mode){
+  authMode = mode;
+  $('authError').classList.remove('show');
+  if(mode === 'login'){
+    $('authTitle').textContent = 'Вход';
+    $('authSubmit').textContent = 'Войти';
+    $('authSwitchText').textContent = 'Нет аккаунта?';
+    $('authSwitchBtn').textContent = 'Создать';
+  } else {
+    $('authTitle').textContent = 'Создать аккаунт';
+    $('authSubmit').textContent = 'Создать аккаунт';
+    $('authSwitchText').textContent = 'Уже есть аккаунт?';
+    $('authSwitchBtn').textContent = 'Войти';
+  }
+}
+$('authSwitchBtn').addEventListener('click', () => setAuthMode(authMode === 'login' ? 'signup' : 'login'));
+
+$('authSubmit').addEventListener('click', async () => {
+  const username = $('authUsername').value.trim();
+  const password = $('authPassword').value;
+  const errEl = $('authError');
+  errEl.classList.remove('show');
+
+  if(!username || !password){
+    errEl.textContent = 'Заполните оба поля';
+    errEl.classList.add('show');
+    return;
+  }
+
+  const btn = $('authSubmit');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const existing = await findUser(username);
+
+  if(authMode === 'signup'){
+    if(existing){
+      errEl.textContent = 'Это имя уже занято';
+      errEl.classList.add('show');
+      btn.disabled = false; btn.textContent = originalText;
+      return;
+    }
+    const ok = await createUser(username, password);
+    if(!ok){
+      errEl.textContent = 'Не получилось сохранить, попробуйте ещё раз';
+      errEl.classList.add('show');
+      btn.disabled = false; btn.textContent = originalText;
+      return;
+    }
+    currentUser = { username };
+    showToast(`Аккаунт создан — добро пожаловать, ${username}`);
+  } else {
+    if(!existing || existing.password !== password){
+      errEl.textContent = 'Неверное имя или пароль';
+      errEl.classList.add('show');
+      btn.disabled = false; btn.textContent = originalText;
+      return;
+    }
+    currentUser = { username };
+    showToast('Вход выполнен');
+  }
+
+  btn.disabled = false; btn.textContent = originalText;
+  closeOverlay('authOverlay');
+  $('authUsername').value = '';
+  $('authPassword').value = '';
+  renderTopBar();
+  renderFeed();
+});
+
+/* ===================== New post ===================== */
+$('postSubmit').addEventListener('click', async () => {
+  const img = $('postImg').value.trim();
+  const cap = $('postCap').value.trim();
+  const errEl = $('postError');
+  errEl.classList.remove('show');
+
+  if(!img || !cap){
+    errEl.textContent = 'Заполните оба поля';
+    errEl.classList.add('show');
+    return;
+  }
+  if(!/^https?:\/\//i.test(img)){
+    errEl.textContent = 'Ссылка должна начинаться с http:// или https://';
+    errEl.classList.add('show');
+    return;
+  }
+
+  const btn = $('postSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const ok = await insertPost(currentUser.username, img, cap);
+  if(ok) await loadPosts();
+
+  btn.disabled = false;
+  btn.textContent = 'Опубликовать';
+
+  if(ok){
+    $('postImg').value = ''; $('postCap').value = '';
+    closeOverlay('postOverlay');
+    renderFeed();
+    showToast('Пост опубликован');
+  } else {
+    errEl.textContent = 'Не получилось опубликовать, попробуйте ещё раз';
+    errEl.classList.add('show');
+  }
+});
+
+/* ===================== DM ===================== */
+async function openDmList(){
+  const others = await listOtherUsers(currentUser.username);
+  const listEl = $('userList');
+  if(others.length === 0){
+    listEl.innerHTML = `<div class="empty-state" style="padding:24px;">Пока нет других пользователей.<br>Позовите друзей зарегистрироваться.</div>`;
+  } else {
+    listEl.innerHTML = others.map(u => `<div class="user-row" data-user="${u}">@${u} <span class="unread-dot"></span></div>`).join('');
+    listEl.querySelectorAll('.user-row').forEach(row => {
+      row.addEventListener('click', () => openChat(row.dataset.user));
+    });
+  }
+  openOverlay('dmListOverlay');
+}
+
+async function openChat(withUser){
+  dmWithUser = withUser;
+  $('chatWithName').textContent = '@' + withUser;
+  closeOverlay('dmListOverlay');
+  openOverlay('chatOverlay');
+  await renderChatMessages();
+  startDmDetailPoll();
+}
+
+async function renderChatMessages(){
+  const messages = await loadThread(currentUser.username, dmWithUser);
+  const el = $('chatMessages');
+  el.innerHTML = messages.map(m => `
+    <div class="msg ${m.from === currentUser.username ? 'mine' : 'theirs'}">
+      ${escapeHtml(m.text)}
+      <div class="msg-time">${new Date(m.ts).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}</div>
+    </div>
+  `).join('') || `<div class="empty-state" style="padding:20px;">Пока нет сообщений.<br>Напишите первым.</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+$('chatSend').addEventListener('click', sendChatMessage);
+$('chatInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') sendChatMessage(); });
+
+async function sendChatMessage(){
+  const input = $('chatInput');
+  const text = input.value.trim();
+  if(!text || !dmWithUser) return;
+  input.value = '';
+  await sendMessage(currentUser.username, dmWithUser, text);
+  await renderChatMessages();
+}
+
+$('chatBack').addEventListener('click', () => {
+  closeOverlay('chatOverlay');
+  stopDmDetailPoll();
+  dmWithUser = null;
+});
+
+let dmDetailTimer = null;
+function startDmDetailPoll(){
+  stopDmDetailPoll();
+  dmDetailTimer = setInterval(renderChatMessages, 3000);
+}
+function stopDmDetailPoll(){
+  if(dmDetailTimer) clearInterval(dmDetailTimer);
+  dmDetailTimer = null;
+}
+
+
+/* ===================== Init ===================== */
+async function init(){
+  $('grid').innerHTML = `<div class="empty-state"><span class="spinner"></span> Загружаю ленту...</div>`;
+  renderTopBar();
+  await loadPosts();
+  renderFeed();
+  feedPollTimer = setInterval(async () => {
+    await loadPosts();
+    renderFeed();
+  }, 8000);
+}
+init();
+</script>
+
+</body>
+</html>
