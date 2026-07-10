@@ -43,17 +43,24 @@
   .wordmark span.dot{ color:var(--accent); font-style:normal; }
   nav.top-actions{ display:flex; align-items:center; gap:10px; }
   .icon-btn{
-    background:none; border:1px solid var(--line); color:var(--fg-dim);
-    width:36px; height:36px; border-radius:50%;
+    background:var(--surface); border:1px solid var(--line); color:var(--fg-dim);
+    width:38px; height:38px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    cursor:pointer; transition:border-color .2s, color .2s;
-    font-family:'IBM Plex Mono', monospace; font-size:13px; position:relative;
+    cursor:pointer; transition:border-color .2s ease, color .2s ease, box-shadow .2s ease, transform .15s ease;
+    position:relative;
   }
-  .icon-btn:hover{ border-color:var(--fg-dim); color:var(--fg); }
+  .icon-btn svg{ width:18px; height:18px; }
+  .icon-btn:hover{
+    color:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 1px rgba(230,67,42,0.25), 0 0 14px rgba(230,67,42,0.35);
+    transform:translateY(-1px);
+  }
   .badge{
-    position:absolute; top:-4px; right:-4px; background:var(--accent);
-    color:#fff; font-size:9px; border-radius:8px; padding:1px 5px;
+    position:absolute; top:-5px; right:-5px; background:var(--accent);
+    color:#fff; font-size:10px; font-weight:700; border-radius:9px; padding:1px 5px;
+    min-width:16px; text-align:center; line-height:14px;
     font-family:'IBM Plex Mono', monospace; display:none;
+    box-shadow:0 0 8px rgba(230,67,42,0.7), 0 0 0 2px var(--bg);
   }
   .badge.show{ display:block; }
   .btn-primary{
@@ -115,7 +122,7 @@
   }
   .action:hover{ color:var(--fg); }
   .action.liked{ color:var(--accent); }
-  .action.reposted{ color:var(--fg); }
+  .action.reposted{ color:var(--accent); }
   .mark-wrap{ position:relative; width:19px; height:19px; display:flex; align-items:center; justify-content:center; }
   .mark-wrap svg{ position:absolute; inset:0; overflow:visible; }
   .heart-path{
@@ -169,6 +176,34 @@
     font-family:'Inter', sans-serif; resize:vertical;
   }
   .field input:focus, .field textarea:focus{ outline:none; border-color:var(--fg-dim); }
+
+  .drop-zone{
+    position:relative; width:100%; min-height:180px; border-radius:16px;
+    border:1.5px dashed var(--line); background:var(--surface-2);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; cursor:pointer; transition:border-color .2s ease, background .2s ease;
+    overflow:hidden; text-align:center; padding:20px;
+  }
+  .drop-zone:hover, .drop-zone.dragover{ border-color:var(--accent); background:#1a1310; }
+  .drop-zone input[type="file"]{ position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .drop-zone-icon{ color:var(--fg-dim); }
+  .drop-zone.dragover .drop-zone-icon,
+  .drop-zone.dragover .drop-zone-title{ color:var(--accent); }
+  .drop-zone-title{ font-size:14px; color:var(--fg); font-weight:500; }
+  .drop-zone-sub{ font-size:11.5px; color:var(--fg-dim); font-family:'IBM Plex Mono', monospace; }
+  .drop-zone-preview{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none;
+  }
+  .drop-zone.has-image .drop-zone-preview{ display:block; }
+  .drop-zone.has-image .drop-zone-icon,
+  .drop-zone.has-image .drop-zone-title,
+  .drop-zone.has-image .drop-zone-sub{ display:none; }
+  .drop-zone-remove{
+    position:absolute; top:10px; right:10px; background:rgba(10,10,10,0.7);
+    color:#fff; border:none; width:28px; height:28px; border-radius:50%;
+    cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; z-index:2;
+  }
+  .drop-zone.has-image .drop-zone-remove{ display:flex; }
   .field-error{ color:var(--accent); font-size:11.5px; margin-top:5px; display:none; }
   .field-error.show{ display:block; }
   .modal .btn-primary{ width:100%; padding:11px; margin-top:6px; font-size:14px; }
@@ -259,10 +294,7 @@
   <div class="grid" id="grid"></div>
 </main>
 
-<footer>
-  Artvane — прототип<br>
-  <span class="footer-warning">Демо-версия: пароли и данные видят все, у кого есть ссылка. Не используйте настоящие пароли.</span>
-</footer>
+<footer></footer>
 
 <!-- Auth modal -->
 <div class="overlay" id="authOverlay">
@@ -291,15 +323,24 @@
 <div class="overlay" id="postOverlay">
   <div class="modal">
     <button class="close" data-close="postOverlay">✕</button>
-    <span class="eyebrow">Новый кадр</span>
-    <h2>Добавить пост</h2>
+    <span class="eyebrow">Новая публикация</span>
+    <h2>Создать пост</h2>
     <div class="field">
-      <label>Фото</label>
-      <input type="file" id="postImgFile" accept="image/*">
+      <label class="drop-zone" id="dropZone">
+        <input type="file" id="postImgFile" accept="image/*">
+        <img class="drop-zone-preview" id="dropZonePreview" alt="">
+        <button type="button" class="drop-zone-remove" id="dropZoneRemove">✕</button>
+        <svg class="drop-zone-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 16V4M12 4L7 9M12 4l5 5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="drop-zone-title">Перетащите фото сюда</span>
+        <span class="drop-zone-sub">или нажмите, чтобы выбрать файл</span>
+      </label>
     </div>
     <div class="field">
-      <label>Подпись</label>
-      <textarea id="postCap" rows="3" placeholder="Пара слов о кадре"></textarea>
+      <label>Описание</label>
+      <textarea id="postCap" rows="3" placeholder="Добавьте описание к публикации..."></textarea>
     </div>
     <div class="field-error" id="postError">Заполните оба поля</div>
     <button class="btn-primary" id="postSubmit">Опубликовать</button>
@@ -444,6 +485,14 @@ async function sendMessage(from, to, text){
   const { error } = await sb.from('messages').insert({ from_user: from, to_user: to, text });
   return !error;
 }
+async function countUnreadMessages(username){
+  const { count, error } = await sb.from('messages').select('id', { count: 'exact', head: true }).eq('to_user', username).eq('read', false);
+  if(error){ console.error(error); return 0; }
+  return count || 0;
+}
+async function markConversationRead(me, other){
+  await sb.from('messages').update({ read: true }).eq('to_user', me).eq('from_user', other).eq('read', false);
+}
 async function listConversations(username){
   const { data, error } = await sb.from('messages')
     .select('*')
@@ -479,6 +528,24 @@ async function listPendingRequests(username){
   const { data, error } = await sb.from('friends').select('*').eq('recipient', username).eq('status', 'pending');
   if(error){ console.error(error); return []; }
   return data;
+}
+
+async function refreshBadges(){
+  if(!currentUser) return;
+  const [pending, unread] = await Promise.all([
+    listPendingRequests(currentUser.username),
+    countUnreadMessages(currentUser.username)
+  ]);
+  const friendsBadge = $('friendsBadge');
+  const dmBadge = $('dmBadge');
+  if(friendsBadge){
+    if(pending.length > 0){ friendsBadge.textContent = pending.length; friendsBadge.classList.add('show'); }
+    else friendsBadge.classList.remove('show');
+  }
+  if(dmBadge){
+    if(unread > 0){ dmBadge.textContent = unread; dmBadge.classList.add('show'); }
+    else dmBadge.classList.remove('show');
+  }
 }
 
 /* ===================== Moderation ===================== */
@@ -522,8 +589,21 @@ function renderTopBar(){
   const nav = $('topActions');
   if(currentUser){
     nav.innerHTML = `
-      <button class="icon-btn" id="friendsBtn" title="Друзья">👥</button>
-      <button class="icon-btn" id="dmBtn" title="Сообщения">💬<span class="badge" id="dmBadge"></span></button>
+      <button class="icon-btn" id="friendsBtn" title="Друзья">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8.5" cy="8" r="3"/>
+          <path d="M2.5 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/>
+          <circle cx="17" cy="8.5" r="2.4"/>
+          <path d="M15.5 13.6c2.6.3 4.5 2.2 4.5 5.4"/>
+        </svg>
+        <span class="badge" id="friendsBadge"></span>
+      </button>
+      <button class="icon-btn" id="dmBtn" title="Сообщения">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.7 8.7 0 0 1-3.4-.7L3 20l1-4.4A8.4 8.4 0 1 1 21 11.5Z"/>
+        </svg>
+        <span class="badge" id="dmBadge"></span>
+      </button>
       <button class="btn-ghost" id="newPostBtn">+ Пост</button>
       <button class="btn-ghost" id="logoutBtn">${currentUser.username}</button>
     `;
@@ -574,7 +654,13 @@ function renderFeed(){
             <span>${(p.likedBy||[]).length}</span>
           </button>
           <button class="action repost-btn ${reposted ? 'reposted' : ''}" data-idx="${idx}">
-            ⇄ <span>${(p.repostedBy||[]).length}</span>
+            <svg class="repost-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 2.5 20.5 6 17 9.5"/>
+              <path d="M3.5 12V9a3 3 0 0 1 3-3h14"/>
+              <path d="M7 21.5 3.5 18 7 14.5"/>
+              <path d="M20.5 12v3a3 3 0 0 1-3 3h-14"/>
+            </svg>
+            <span>${(p.repostedBy||[]).length}</span>
           </button>
         </div>
       </div>
@@ -696,9 +782,50 @@ $('authSubmit').addEventListener('click', async () => {
   localStorage.setItem('artvane_username', currentUser.username);
   renderTopBar();
   renderFeed();
+  refreshBadges();
 });
 
 /* ===================== New post ===================== */
+const dropZone = $('dropZone');
+const postImgFileInput = $('postImgFile');
+const dropZonePreview = $('dropZonePreview');
+
+function setDropZoneFile(file){
+  if(!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  postImgFileInput.files = dt.files;
+  dropZonePreview.src = URL.createObjectURL(file);
+  dropZone.classList.add('has-image');
+}
+function clearDropZoneFile(){
+  postImgFileInput.value = '';
+  dropZonePreview.src = '';
+  dropZone.classList.remove('has-image');
+}
+
+postImgFileInput.addEventListener('change', () => {
+  const file = postImgFileInput.files[0];
+  if(file) setDropZoneFile(file);
+});
+['dragover','dragenter'].forEach(evt => {
+  dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+});
+['dragleave','dragend'].forEach(evt => {
+  dropZone.addEventListener(evt, () => dropZone.classList.remove('dragover'));
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) setDropZoneFile(file);
+});
+$('dropZoneRemove').addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  clearDropZoneFile();
+});
+
 $('postSubmit').addEventListener('click', async () => {
   const fileInput = $('postImgFile');
   const file = fileInput.files[0];
@@ -757,7 +884,7 @@ $('postSubmit').addEventListener('click', async () => {
   btn.textContent = 'Опубликовать';
 
   if(ok){
-    fileInput.value = ''; $('postCap').value = '';
+    clearDropZoneFile(); $('postCap').value = '';
     closeOverlay('postOverlay');
     renderFeed();
     showToast('Пост опубликован');
@@ -853,12 +980,14 @@ async function openFriendsModal(){
         await respondFriendRequest(btn.dataset.accept, 'accepted');
         showToast('Заявка принята');
         openFriendsModal();
+        refreshBadges();
       });
     });
     pendingList.querySelectorAll('[data-decline]').forEach(btn => {
       btn.addEventListener('click', async () => {
         await respondFriendRequest(btn.dataset.decline, 'declined');
         openFriendsModal();
+        refreshBadges();
       });
     });
   } else {
@@ -924,6 +1053,8 @@ async function openChat(withUser){
   closeOverlay('dmListOverlay');
   openOverlay('chatOverlay');
   await renderChatMessages();
+  await markConversationRead(currentUser.username, withUser);
+  await refreshBadges();
   startDmDetailPoll();
 }
 
@@ -984,9 +1115,11 @@ async function init(){
   renderTopBar();
   await loadPosts();
   renderFeed();
+  await refreshBadges();
   feedPollTimer = setInterval(async () => {
     await loadPosts();
     renderFeed();
+    await refreshBadges();
   }, 8000);
 }
 init();
