@@ -329,6 +329,14 @@
   .swipe-ctrl-btn.nope:hover{ color:var(--accent); border-color:var(--accent); }
   .swipe-ctrl-btn.like:hover{ color:#4ade80; border-color:#4ade80; }
 
+  .search-panel{
+    position:fixed; top:66px; right:16px; width:min(320px, calc(100vw - 32px));
+    max-height:60vh; overflow-y:auto; background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:14px; z-index:60; display:none;
+    box-shadow:0 14px 34px rgba(0,0,0,0.55);
+  }
+  .search-panel.open{ display:block; }
+
   .spinner{
     display:inline-block; width:14px; height:14px; border:2px solid var(--fg-dim);
     border-top-color:var(--fg); border-radius:50%; animation:spin .7s linear infinite;
@@ -409,7 +417,7 @@
     </div>
     <div class="field">
       <label>Описание</label>
-      <textarea id="postCap" rows="3" placeholder="Добавьте описание к публикации..."></textarea>
+      <textarea id="postCap" rows="3" placeholder="Добавьте описание к публикации... (необязательно)"></textarea>
     </div>
     <div class="field-error" id="postError">Заполните оба поля</div>
     <button class="btn-primary" id="postSubmit">Опубликовать</button>
@@ -469,15 +477,10 @@
   </div>
 </div>
 
-<!-- Search modal -->
-<div class="overlay" id="searchOverlay">
-  <div class="modal">
-    <button class="close" data-close="searchOverlay">✕</button>
-    <span class="eyebrow">Поиск</span>
-    <h2>Найти людей</h2>
-    <input type="text" id="userSearchInput" placeholder="Введите имя..." style="width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--fg); padding:9px 12px; border-radius:10px; font-size:13.5px; font-family:'Inter', sans-serif; margin-bottom:10px;">
-    <div class="user-list" id="allUsersList"></div>
-  </div>
+<!-- Inline search panel (anchored under header, not a separate window) -->
+<div class="search-panel" id="searchPanel">
+  <input type="text" id="userSearchInput" placeholder="Введите имя..." class="inline-edit-input" style="margin-bottom:0;">
+  <div class="user-list" id="allUsersList" style="margin-top:10px;"></div>
 </div>
 
 <!-- Swipe modal -->
@@ -536,6 +539,32 @@
   </div>
 </div>
 
+<!-- Prompt modal (site-native, replaces browser prompt()) -->
+<div class="overlay" id="promptOverlay">
+  <div class="modal" style="max-width:360px;">
+    <span class="eyebrow">Изменить</span>
+    <h2 id="promptTitle" style="font-size:19px;">Описание</h2>
+    <textarea id="promptInput" class="inline-edit-input" rows="3" style="margin-bottom:14px;"></textarea>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-ghost" id="promptCancelBtn" style="flex:1;">Отмена</button>
+      <button class="btn-primary" id="promptSaveBtn" style="flex:1;">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal (site-native, replaces browser confirm()) -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal" style="max-width:340px;">
+    <span class="eyebrow" id="confirmEyebrow">Подтвердите</span>
+    <h2 id="confirmTitle" style="font-size:19px;">Вы уверены?</h2>
+    <p id="confirmMessage" style="font-size:13.5px; color:var(--fg-dim); margin:0 0 18px;"></p>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-ghost" id="confirmCancelBtn" style="flex:1;">Отмена</button>
+      <button class="btn-primary" id="confirmOkBtn" style="flex:1;">Удалить</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -562,10 +591,51 @@ function showToast(msg){
 
 function openOverlay(id){ $(id).classList.add('open'); }
 function closeOverlay(id){ $(id).classList.remove('open'); }
+
+function showPrompt(title, initialValue){
+  $('promptTitle').textContent = title;
+  $('promptInput').value = initialValue || '';
+  openOverlay('promptOverlay');
+  return new Promise((resolve) => {
+    const saveBtn = $('promptSaveBtn');
+    const cancelBtn = $('promptCancelBtn');
+    function cleanup(result){
+      closeOverlay('promptOverlay');
+      saveBtn.removeEventListener('click', onSave);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onSave(){ cleanup($('promptInput').value); }
+    function onCancel(){ cleanup(null); }
+    saveBtn.addEventListener('click', onSave);
+    cancelBtn.addEventListener('click', onCancel);
+    $('promptInput').focus();
+  });
+}
+
+function showConfirm(message, okLabel){
+  $('confirmMessage').textContent = message;
+  $('confirmOkBtn').textContent = okLabel || 'Удалить';
+  openOverlay('confirmOverlay');
+  return new Promise((resolve) => {
+    const okBtn = $('confirmOkBtn');
+    const cancelBtn = $('confirmCancelBtn');
+    function cleanup(result){
+      closeOverlay('confirmOverlay');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','searchOverlay','swipeOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -821,7 +891,7 @@ function renderTopBar(){
       <button class="btn-ghost" id="newPostBtn">+ Пост</button>
       <button class="btn-ghost" id="logoutBtn">${escapeHtml(displayNameFor(currentUser.username))}</button>
     `;
-    $('searchBtn').addEventListener('click', openSearchModal);
+    $('searchBtn').addEventListener('click', (e) => { e.stopPropagation(); toggleSearchPanel(); });
     $('swipeBtn').addEventListener('click', openSwipeModal);
     $('friendsBtn').addEventListener('click', openFriendsModal);
     $('dmBtn').addEventListener('click', openDmList);
@@ -851,7 +921,7 @@ function renderFeed(){
     const idx = postsCache.indexOf(p);
     const liked = currentUser && p.likedBy && p.likedBy.includes(currentUser.username);
     const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
-    const isOwner = currentUser && p.author === currentUser.username;
+    const canManage = currentUser && (p.author === currentUser.username || currentUser.isAdmin);
     const commentCount = commentCountsByPost[p.id] || 0;
     const imgClass = (sortedIdx === 0 && p.mediaType !== 'video') ? 'developing' : '';
     const mediaHtml = p.mediaType === 'video'
@@ -863,15 +933,13 @@ function renderFeed(){
           <button class="avatar-badge" data-profile="${p.author}">${avatarInnerHtml(p.author)}</button>
           <button class="author-link" data-profile="${p.author}">${escapeHtml(displayNameFor(p.author))}</button>
           <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
-          ${isOwner ? `
+          ${canManage ? `
             <button class="post-menu-btn" data-edit="${p.id}" title="Изменить описание">✎</button>
             <button class="post-menu-btn" data-delete="${p.id}" title="Удалить">🗑</button>
           ` : ''}
         </div>
         ${mediaHtml}
-        <div class="frame-info">
-          <p class="cap">${escapeHtml(p.cap)}</p>
-        </div>
+        ${p.cap ? `<div class="frame-info"><p class="cap">${escapeHtml(p.cap)}</p></div>` : ''}
         <div class="frame-actions">
           <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
             <span class="mark-wrap">
@@ -950,17 +1018,19 @@ $('grid').addEventListener('click', async (e) => {
     const postId = editBtn.dataset.edit;
     const post = postsCache.find(p => String(p.id) === String(postId));
     if(!post) return;
-    const newCap = prompt('Изменить описание:', post.cap);
-    if(newCap !== null && newCap.trim()){
-      if(containsBannedWords(newCap)){ showToast('В описании есть недопустимые слова'); return; }
-      post.cap = newCap.trim();
+    const newCap = await showPrompt('Изменить описание', post.cap);
+    if(newCap !== null){
+      const trimmed = newCap.trim();
+      if(containsBannedWords(trimmed)){ showToast('В описании есть недопустимые слова'); return; }
+      post.cap = trimmed;
       renderFeed();
       await updatePostCaption(postId, post.cap);
     }
   }
   if(deleteBtn){
     const postId = deleteBtn.dataset.delete;
-    if(confirm('Удалить публикацию? Это нельзя отменить.')){
+    const ok = await showConfirm('Удалить публикацию? Это нельзя отменить.', 'Удалить');
+    if(ok){
       await deletePostById(postId);
       await loadPosts();
       renderFeed();
@@ -1024,7 +1094,7 @@ $('authSubmit').addEventListener('click', async () => {
       btn.disabled = false; btn.textContent = originalText;
       return;
     }
-    currentUser = { username };
+    currentUser = { username, isAdmin: false };
     displayNameByUsername[username] = displayName;
     showToast(`Аккаунт создан — добро пожаловать, ${displayName}`);
   } else {
@@ -1034,7 +1104,7 @@ $('authSubmit').addEventListener('click', async () => {
       btn.disabled = false; btn.textContent = originalText;
       return;
     }
-    currentUser = { username };
+    currentUser = { username, isAdmin: !!existing.is_admin };
     showToast('Вход выполнен');
   }
 
@@ -1113,8 +1183,8 @@ $('postSubmit').addEventListener('click', async () => {
   const errEl = $('postError');
   errEl.classList.remove('show');
 
-  if(!file || !cap){
-    errEl.textContent = 'Выберите фото или видео и добавьте описание';
+  if(!file){
+    errEl.textContent = 'Выберите фото или видео';
     errEl.classList.add('show');
     return;
   }
@@ -1406,8 +1476,25 @@ async function openFriendsModal(){
 }
 
 /* ===================== Search ===================== */
-async function openSearchModal(){
+function toggleSearchPanel(){
+  const panel = $('searchPanel');
+  if(panel.classList.contains('open')){
+    panel.classList.remove('open');
+  } else {
+    openSearchPanel();
+  }
+}
+document.addEventListener('click', (e) => {
+  const panel = $('searchPanel');
+  if(!panel || !panel.classList.contains('open')) return;
+  if(panel.contains(e.target) || e.target.closest('#searchBtn')) return;
+  panel.classList.remove('open');
+});
+
+async function openSearchPanel(){
+  $('searchPanel').classList.add('open');
   $('userSearchInput').value = '';
+  $('userSearchInput').focus();
   const others = await listOtherUsers(currentUser.username);
   await loadAvatarsForUsers(others);
 
@@ -1433,22 +1520,21 @@ async function openSearchModal(){
       }
     }
     allUsersList.querySelectorAll('[data-request]').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         await sendFriendRequest(currentUser.username, btn.dataset.request);
         showToast('Заявка отправлена');
-        openSearchModal();
+        openSearchPanel();
       });
     });
     allUsersList.querySelectorAll('.user-row').forEach(row => {
       row.addEventListener('click', (e) => {
         if(e.target.closest('[data-request]')) return;
-        closeOverlay('searchOverlay');
+        $('searchPanel').classList.remove('open');
         openProfileModal(row.dataset.username);
       });
     });
   }
-
-  openOverlay('searchOverlay');
 }
 
 $('userSearchInput').addEventListener('input', () => {
@@ -1697,7 +1783,7 @@ async function init(){
   const savedUsername = localStorage.getItem('artvane_username');
   if(savedUsername){
     const existing = await findUser(savedUsername);
-    if(existing) currentUser = { username: savedUsername };
+    if(existing) currentUser = { username: savedUsername, isAdmin: !!existing.is_admin };
     else localStorage.removeItem('artvane_username');
   }
   renderTopBar();
