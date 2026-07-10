@@ -116,6 +116,18 @@
   }
   .author-link:hover{ text-decoration:underline; }
   .frame-date{ margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--fg-dim); }
+  .post-menu-btn{
+    background:none; border:none; color:var(--fg-dim); cursor:pointer; font-size:12px;
+    padding:2px 4px; margin-left:6px;
+  }
+  .post-menu-btn:hover{ color:var(--accent); }
+
+  @keyframes develop{
+    0%{ filter: blur(16px) grayscale(1) brightness(0.35) contrast(1.3); }
+    60%{ filter: blur(4px) grayscale(0.5) brightness(0.8) contrast(1.1); }
+    100%{ filter: blur(0) grayscale(0) brightness(1) contrast(1); }
+  }
+  .frame img.developing{ animation: develop 1.6s ease-out; }
   .frame img{
     display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
     background:#000;
@@ -370,6 +382,10 @@
         <p class="profile-stat" id="profilePostCount"></p>
       </div>
     </div>
+    <div id="profileBioWrap" style="margin-bottom:16px;">
+      <p id="profileBioText" style="font-size:13.5px; color:var(--fg-dim); line-height:1.5; margin:0 0 6px;"></p>
+      <button class="row-btn" id="profileBioEditBtn" style="display:none;">Изменить био</button>
+    </div>
     <div class="profile-actions" id="profileActions"></div>
     <div class="profile-grid" id="profilePosts"></div>
   </div>
@@ -386,6 +402,7 @@
       <div class="user-list" id="pendingList" style="margin-bottom:20px;"></div>
     </div>
     <label style="display:block; font-size:11px; color:var(--fg-dim); margin-bottom:8px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">Все пользователи</label>
+    <input type="text" id="userSearchInput" placeholder="Поиск по имени..." style="width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--fg); padding:9px 12px; border-radius:10px; font-size:13.5px; font-family:'Inter', sans-serif; margin-bottom:10px;">
     <div class="user-list" id="allUsersList"></div>
   </div>
 </div>
@@ -411,6 +428,21 @@
     <div class="chat-input-row">
       <input type="text" id="chatInput" placeholder="Сообщение...">
       <button class="chat-send" id="chatSend">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- Comments modal -->
+<div class="overlay chat-modal" id="commentsOverlay">
+  <div class="modal">
+    <div class="chat-head">
+      <button class="chat-back" data-close="commentsOverlay">←</button>
+      <span>Комментарии</span>
+    </div>
+    <div class="chat-messages" id="commentsList"></div>
+    <div class="chat-input-row">
+      <input type="text" id="commentInput" placeholder="Написать комментарий...">
+      <button class="chat-send" id="commentSend">➤</button>
     </div>
   </div>
 </div>
@@ -444,7 +476,7 @@ function closeOverlay(id){ $(id).classList.remove('open'); }
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -464,20 +496,22 @@ async function listOtherUsers(excludeUsername){
   return data.map(u => u.username);
 }
 
-/* ===================== Avatars ===================== */
+/* ===================== Avatars & bio ===================== */
 let avatarsByUsername = {};
+let bioByUsername = {};
 async function loadAvatarsForUsers(usernames){
   const unique = [...new Set(usernames)].filter(u => avatarsByUsername[u] === undefined);
   if(unique.length === 0) return;
-  const { data, error } = await sb.from('users').select('username, avatar_url').in('username', unique);
+  const { data, error } = await sb.from('users').select('username, avatar_url, bio').in('username', unique);
   if(error){ console.error(error); return; }
-  data.forEach(u => { avatarsByUsername[u.username] = u.avatar_url; });
+  data.forEach(u => { avatarsByUsername[u.username] = u.avatar_url; bioByUsername[u.username] = u.bio; });
 }
 async function getAvatarUrl(username){
   if(avatarsByUsername[username] !== undefined) return avatarsByUsername[username];
-  const { data } = await sb.from('users').select('avatar_url').eq('username', username).maybeSingle();
+  const { data } = await sb.from('users').select('avatar_url, bio').eq('username', username).maybeSingle();
   const url = data ? data.avatar_url : null;
   avatarsByUsername[username] = url;
+  bioByUsername[username] = data ? data.bio : null;
   return url;
 }
 function avatarInnerHtml(username){
@@ -503,6 +537,33 @@ async function insertPost(author, img, cap){
 }
 async function updatePostReactions(id, likedBy, repostedBy){
   const { error } = await sb.from('posts').update({ liked_by: likedBy, reposted_by: repostedBy }).eq('id', id);
+  return !error;
+}
+async function updatePostCaption(id, cap){
+  const { error } = await sb.from('posts').update({ cap }).eq('id', id);
+  return !error;
+}
+async function deletePostById(id){
+  const { error } = await sb.from('posts').delete().eq('id', id);
+  return !error;
+}
+
+/* ===================== Comments ===================== */
+let commentCountsByPost = {};
+async function loadCommentCounts(postIds){
+  if(postIds.length === 0) return;
+  const { data, error } = await sb.from('comments').select('post_id').in('post_id', postIds);
+  if(error){ console.error(error); return; }
+  commentCountsByPost = {};
+  data.forEach(c => { commentCountsByPost[c.post_id] = (commentCountsByPost[c.post_id] || 0) + 1; });
+}
+async function fetchComments(postId){
+  const { data, error } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+  if(error){ console.error(error); return []; }
+  return data;
+}
+async function insertComment(postId, author, text){
+  const { error } = await sb.from('comments').insert({ post_id: postId, author, text });
   return !error;
 }
 
@@ -665,18 +726,25 @@ function renderFeed(){
     return;
   }
   const sorted = [...postsCache].sort((a,b) => b.ts - a.ts);
-  grid.innerHTML = sorted.map((p) => {
+  grid.innerHTML = sorted.map((p, sortedIdx) => {
     const idx = postsCache.indexOf(p);
     const liked = currentUser && p.likedBy && p.likedBy.includes(currentUser.username);
     const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
+    const isOwner = currentUser && p.author === currentUser.username;
+    const commentCount = commentCountsByPost[p.id] || 0;
+    const imgClass = sortedIdx === 0 ? 'developing' : '';
     return `
       <div class="frame">
         <div class="frame-header">
           <button class="avatar-badge" data-profile="${p.author}">${avatarInnerHtml(p.author)}</button>
           <button class="author-link" data-profile="${p.author}">@${escapeHtml(p.author)}</button>
           <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
+          ${isOwner ? `
+            <button class="post-menu-btn" data-edit="${p.id}" title="Изменить описание">✎</button>
+            <button class="post-menu-btn" data-delete="${p.id}" title="Удалить">🗑</button>
+          ` : ''}
         </div>
-        <img src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
+        <img class="${imgClass}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
         <div class="frame-info">
           <p class="cap">${escapeHtml(p.cap)}</p>
         </div>
@@ -696,6 +764,12 @@ function renderFeed(){
             </svg>
             <span>${(p.repostedBy||[]).length}</span>
           </button>
+          <button class="action comment-btn" data-post-id="${p.id}">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.7 8.7 0 0 1-3.4-.7L3 20l1-4.4A8.4 8.4 0 1 1 21 11.5Z"/>
+            </svg>
+            <span>${commentCount}</span>
+          </button>
         </div>
       </div>
     `;
@@ -711,14 +785,17 @@ function escapeHtml(str){
 $('grid').addEventListener('click', async (e) => {
   const likeBtn = e.target.closest('.like-btn');
   const repostBtn = e.target.closest('.repost-btn');
+  const commentBtn = e.target.closest('.comment-btn');
   const profileBtn = e.target.closest('[data-profile]');
+  const editBtn = e.target.closest('[data-edit]');
+  const deleteBtn = e.target.closest('[data-delete]');
 
   if(profileBtn){
     if(!currentUser){ showToast('Войдите, чтобы смотреть профили'); return; }
     openProfileModal(profileBtn.dataset.profile);
     return;
   }
-  if(!currentUser && (likeBtn || repostBtn)){
+  if(!currentUser && (likeBtn || repostBtn || commentBtn || editBtn || deleteBtn)){
     showToast('Войдите, чтобы взаимодействовать с постами');
     return;
   }
@@ -741,6 +818,30 @@ $('grid').addEventListener('click', async (e) => {
     else post.repostedBy.splice(pos, 1);
     renderFeed();
     await updatePostReactions(post.id, post.likedBy, post.repostedBy);
+  }
+  if(commentBtn){
+    openComments(commentBtn.dataset.postId);
+  }
+  if(editBtn){
+    const postId = editBtn.dataset.edit;
+    const post = postsCache.find(p => String(p.id) === String(postId));
+    if(!post) return;
+    const newCap = prompt('Изменить описание:', post.cap);
+    if(newCap !== null && newCap.trim()){
+      if(containsBannedWords(newCap)){ showToast('В описании есть недопустимые слова'); return; }
+      post.cap = newCap.trim();
+      renderFeed();
+      await updatePostCaption(postId, post.cap);
+    }
+  }
+  if(deleteBtn){
+    const postId = deleteBtn.dataset.delete;
+    if(confirm('Удалить публикацию? Это нельзя отменить.')){
+      await deletePostById(postId);
+      await loadPosts();
+      renderFeed();
+      showToast('Публикация удалена');
+    }
   }
 });
 
@@ -915,6 +1016,7 @@ $('postSubmit').addEventListener('click', async () => {
   if(ok){
     await loadPosts();
     await loadAvatarsForUsers(postsCache.map(p => p.author));
+    await loadCommentCounts(postsCache.map(p => p.id));
   }
 
   btn.disabled = false;
@@ -945,6 +1047,21 @@ async function openProfileModal(username){
   await getAvatarUrl(username);
   $('profileAvatar').innerHTML = avatarInnerHtml(username);
   $('avatarEditBtn').classList.toggle('show', isMe);
+
+  const bio = bioByUsername[username];
+  $('profileBioText').textContent = bio || (isMe ? 'Пока нет описания.' : '');
+  const bioEditBtn = $('profileBioEditBtn');
+  bioEditBtn.style.display = isMe ? 'inline-block' : 'none';
+  bioEditBtn.onclick = async () => {
+    const newBio = prompt('Расскажите о себе:', bioByUsername[username] || '');
+    if(newBio !== null){
+      if(containsBannedWords(newBio)){ showToast('В био есть недопустимые слова'); return; }
+      await sb.from('users').update({ bio: newBio.trim() }).eq('username', currentUser.username);
+      bioByUsername[username] = newBio.trim();
+      $('profileBioText').textContent = newBio.trim() || 'Пока нет описания.';
+      showToast('Био обновлено');
+    }
+  };
 
   const userPosts = postsCache.filter(p => p.author === username).sort((a,b) => b.ts - a.ts);
   $('profilePostCount').textContent = `${userPosts.length} ${pluralPosts(userPosts.length)}`;
@@ -1037,6 +1154,7 @@ $('avatarFileInput').addEventListener('change', async () => {
 
 /* ===================== Friends UI ===================== */
 async function openFriendsModal(){
+  $('userSearchInput').value = '';
   const others = await listOtherUsers(currentUser.username);
   const pending = await listPendingRequests(currentUser.username);
 
@@ -1105,6 +1223,14 @@ async function openFriendsModal(){
   openOverlay('friendsOverlay');
 }
 
+$('userSearchInput').addEventListener('input', () => {
+  const query = $('userSearchInput').value.trim().toLowerCase();
+  $('allUsersList').querySelectorAll('.user-row').forEach(row => {
+    const username = (row.dataset.username || '').toLowerCase();
+    row.style.display = username.includes(query) ? '' : 'none';
+  });
+});
+
 /* ===================== DM ===================== */
 async function openDmList(){
   const conversations = await listConversations(currentUser.username);
@@ -1123,6 +1249,43 @@ async function openDmList(){
     });
   }
   openOverlay('dmListOverlay');
+}
+
+/* ===================== Comments UI ===================== */
+let activeCommentsPostId = null;
+async function openComments(postId){
+  activeCommentsPostId = postId;
+  await renderComments();
+  openOverlay('commentsOverlay');
+}
+async function renderComments(){
+  const comments = await fetchComments(activeCommentsPostId);
+  const el = $('commentsList');
+  if(comments.length === 0){
+    el.innerHTML = `<div class="empty-state" style="padding:20px;">Пока нет комментариев.<br>Будьте первым.</div>`;
+    return;
+  }
+  el.innerHTML = comments.map(c => `
+    <div class="msg theirs" style="align-self:flex-start; max-width:88%;">
+      <strong style="font-size:12px;">@${escapeHtml(c.author)}</strong><br>
+      ${escapeHtml(c.text)}
+      <div class="msg-time">${new Date(c.created_at).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}</div>
+    </div>
+  `).join('');
+  el.scrollTop = el.scrollHeight;
+}
+$('commentSend').addEventListener('click', sendComment);
+$('commentInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') sendComment(); });
+async function sendComment(){
+  const input = $('commentInput');
+  const text = input.value.trim();
+  if(!text || !activeCommentsPostId) return;
+  if(containsBannedWords(text)){ showToast('Комментарий содержит недопустимые слова'); return; }
+  input.value = '';
+  await insertComment(activeCommentsPostId, currentUser.username, text);
+  await renderComments();
+  commentCountsByPost[activeCommentsPostId] = (commentCountsByPost[activeCommentsPostId] || 0) + 1;
+  renderFeed();
 }
 
 async function openChat(withUser){
@@ -1193,11 +1356,13 @@ async function init(){
   renderTopBar();
   await loadPosts();
   await loadAvatarsForUsers(postsCache.map(p => p.author));
+  await loadCommentCounts(postsCache.map(p => p.id));
   renderFeed();
   await refreshBadges();
   feedPollTimer = setInterval(async () => {
     await loadPosts();
     await loadAvatarsForUsers(postsCache.map(p => p.author));
+    await loadCommentCounts(postsCache.map(p => p.id));
     renderFeed();
     await refreshBadges();
   }, 8000);
