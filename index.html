@@ -27,16 +27,18 @@
     --line: #2a2a26;
     --accent: #e6432a;
     --btn-text: #0a0a0a;
+    --bg-translucent: rgba(10,10,10,0.9);
   }
   :root[data-theme="light"]{
     --bg: #ffffff;
-    --surface: #f7f5f2;
-    --surface-2: #efece6;
-    --fg: #18140f;
-    --fg-dim: #8a8479;
-    --line: #e3ded5;
-    --accent: #d8341c;
+    --surface: #faf8f4;
+    --surface-2: #f1ece2;
+    --fg: #1c1811;
+    --fg-dim: #8f8672;
+    --line: #e6ddc9;
+    --accent: #b4922e;
     --btn-text: #ffffff;
+    --bg-translucent: rgba(255,255,255,0.9);
   }
   html{ transition: background .2s ease; }
   *{ box-sizing: border-box; }
@@ -50,7 +52,7 @@
     position:sticky; top:0; z-index:50;
     display:flex; align-items:center; justify-content:space-between;
     padding:16px 22px;
-    background:rgba(10,10,10,0.88);
+    background:var(--bg-translucent);
     backdrop-filter: blur(10px);
     border-bottom:1px solid var(--line);
   }
@@ -61,13 +63,16 @@
   .wordmark span.dot{ color:var(--accent); font-style:normal; }
   nav.top-actions{ display:flex; align-items:center; gap:10px; }
   .icon-btn{
-    background:var(--surface); border:1px solid var(--line); color:var(--fg-dim);
-    width:38px; height:38px; border-radius:50%;
+    background:color-mix(in srgb, var(--fg) 8%, transparent);
+    backdrop-filter:blur(10px);
+    border:1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+    color:var(--fg-dim);
+    width:40px; height:40px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer; transition:border-color .2s ease, color .2s ease, box-shadow .2s ease, transform .15s ease;
     position:relative;
   }
-  .icon-btn svg{ width:18px; height:18px; }
+  .icon-btn svg{ width:19px; height:19px; }
   .icon-btn:hover{
     color:var(--accent); border-color:var(--accent);
     box-shadow:0 0 0 1px rgba(230,67,42,0.25), 0 0 14px rgba(230,67,42,0.35);
@@ -186,7 +191,7 @@
   .action:hover{ color:var(--fg); }
   .action.liked{ color:var(--accent); }
   .action.reposted{ color:var(--accent); }
-  .mark-wrap{ position:relative; width:19px; height:19px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .mark-wrap{ position:relative; width:21px; height:21px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .mark-wrap svg{ position:absolute; inset:0; overflow:hidden; }
   .heart-path{
     fill:none; stroke:var(--fg-dim); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round;
@@ -437,7 +442,7 @@
     .bottom-nav{
       display:flex; align-items:center; justify-content:space-around;
       position:fixed; left:0; right:0; bottom:0; z-index:55;
-      background:rgba(10,10,10,0.92); backdrop-filter:blur(14px);
+      background:var(--bg-translucent); backdrop-filter:blur(14px);
       border-top:1px solid var(--line);
       padding:8px 6px calc(8px + env(safe-area-inset-bottom));
       transform:translateY(calc(-1 * var(--keyboard-offset)));
@@ -446,12 +451,17 @@
     .bottom-nav-btn{
       background:none; border:none; color:var(--fg-dim); display:flex;
       flex-direction:column; align-items:center; gap:3px; padding:6px 8px;
-      min-width:48px; min-height:48px; justify-content:center;
+      min-width:50px; min-height:50px; justify-content:center;
       cursor:pointer; position:relative;
     }
-    .bottom-nav-btn svg{ width:26px; height:26px; }
-    .bottom-nav-btn.active{ color:var(--fg); }
-    .bottom-nav-btn .badge{ top:2px; right:2px; }
+    .bottom-nav-btn svg{
+      width:27px; height:27px; padding:5px; box-sizing:content-box;
+      background:color-mix(in srgb, var(--fg) 7%, transparent);
+      border:1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+      border-radius:50%;
+    }
+    .bottom-nav-btn.active svg, .bottom-nav-btn.active{ color:var(--fg); }
+    .bottom-nav-btn .badge{ top:0px; right:0px; }
     .bottom-nav-avatar{
       width:29px; height:29px; border-radius:50%; overflow:hidden;
       display:flex; align-items:center; justify-content:center;
@@ -463,7 +473,7 @@
       display:flex; align-items:center; justify-content:center; margin-top:-16px;
       box-shadow:0 4px 14px rgba(0,0,0,0.4);
     }
-    .bottom-nav-post svg{ width:24px; height:24px; }
+    .bottom-nav-post svg{ width:24px; height:24px; padding:0; background:none; border:none; }
 
     main{ padding:18px 12px calc(96px + env(safe-area-inset-bottom)); }
     .frame{ border-radius:16px; }
@@ -672,7 +682,7 @@
     <div class="swipe-controls">
       <button class="swipe-ctrl-btn nope" id="swipeNopeBtn">✕</button>
       <button class="swipe-ctrl-btn like" id="swipeLikeBtn">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 20.5s-7.5-4.6-10-9.3C0.3 7.8 2 4 5.8 4c2.1 0 3.7 1.2 4.7 2.7C11.5 5.2 13.1 4 15.2 4 19 4 20.7 7.8 19 11.2c-2.5 4.7-10 9.3-10 9.3z"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
       </button>
     </div>
   </div>
@@ -1321,7 +1331,7 @@ function renderFeed(){
         <div class="frame-actions">
           <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
             <span class="mark-wrap">
-              <svg viewBox="-1.5 -1.5 27 27"><path class="heart-path" d="M12 20.5s-7.5-4.6-10-9.3C0.3 7.8 2 4 5.8 4c2.1 0 3.7 1.2 4.7 2.7C11.5 5.2 13.1 4 15.2 4 19 4 20.7 7.8 19 11.2c-2.5 4.7-10 9.3-10 9.3z"/></svg>
+              <svg viewBox="0 0 24 24"><path class="heart-path" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </span>
             <span>${(p.likedBy||[]).length}</span>
           </button>
