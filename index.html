@@ -83,11 +83,24 @@
     background:var(--surface); border:1px solid var(--line); border-radius:20px;
     overflow:hidden; position:relative;
   }
-  .frame-strip{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:8px 12px; font-family:'IBM Plex Mono', monospace; font-size:10.5px;
-    color:var(--fg-dim); letter-spacing:0.5px; border-bottom:1px dashed var(--line);
+  .frame-header{
+    display:flex; align-items:center; gap:9px;
+    padding:10px 12px; border-bottom:1px solid var(--line);
   }
+  .avatar-badge{
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    background:var(--surface-2); border:1px solid var(--line); color:var(--fg);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:600; font-size:13px;
+    cursor:pointer; padding:0;
+  }
+  .avatar-badge.avatar-lg{ width:64px; height:64px; font-size:26px; }
+  .author-link{
+    background:none; border:none; color:var(--fg); font-weight:600; font-size:13px;
+    cursor:pointer; padding:0; font-family:'Inter', sans-serif;
+  }
+  .author-link:hover{ text-decoration:underline; }
+  .frame-date{ margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--fg-dim); }
   .frame img{
     display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
     background:#000;
@@ -114,6 +127,16 @@
   .empty-state{
     text-align:center; padding:60px 20px; color:var(--fg-dim);
     font-family:'IBM Plex Mono', monospace; font-size:13px; border:1px dashed var(--line); border-radius:2px;
+  }
+
+  .profile-header{ display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+  .profile-header-info h2{ margin:0 0 4px; font-size:20px; }
+  .profile-stat{ color:var(--fg-dim); font-size:13px; margin:0; }
+  .profile-actions{ margin-bottom:18px; }
+  .profile-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
+  .profile-grid img{
+    width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; cursor:pointer;
+    background:var(--surface-2);
   }
 
   /* ---------- Overlay / Modal ---------- */
@@ -287,11 +310,15 @@
 <div class="overlay" id="profileOverlay">
   <div class="modal" style="max-width:480px;">
     <button class="close" data-close="profileOverlay">✕</button>
-    <span class="eyebrow">Профиль</span>
-    <h2 id="profileUsername">@username</h2>
-    <p id="profilePostCount" style="color:var(--fg-dim); font-size:13px; margin:-10px 0 16px;"></p>
-    <div id="profilePosts" class="grid" style="gap:14px;"></div>
-    <button class="btn-ghost" id="profileLogoutBtn" style="width:100%; margin-top:18px;">Выйти из аккаунта</button>
+    <div class="profile-header">
+      <div class="avatar-badge avatar-lg" id="profileAvatar">A</div>
+      <div class="profile-header-info">
+        <h2 id="profileUsername">@username</h2>
+        <p class="profile-stat" id="profilePostCount"></p>
+      </div>
+    </div>
+    <div class="profile-actions" id="profileActions"></div>
+    <div class="profile-grid" id="profilePosts"></div>
   </div>
 </div>
 
@@ -417,6 +444,19 @@ async function sendMessage(from, to, text){
   const { error } = await sb.from('messages').insert({ from_user: from, to_user: to, text });
   return !error;
 }
+async function listConversations(username){
+  const { data, error } = await sb.from('messages')
+    .select('*')
+    .or(`from_user.eq.${username},to_user.eq.${username}`)
+    .order('created_at', { ascending: false });
+  if(error){ console.error(error); return []; }
+  const seen = new Map();
+  data.forEach(m => {
+    const other = m.from_user === username ? m.to_user : m.from_user;
+    if(!seen.has(other)) seen.set(other, m);
+  });
+  return Array.from(seen.entries()).map(([user, lastMsg]) => ({ user, lastMsg }));
+}
 
 /* ===================== Friends ===================== */
 async function sendFriendRequest(from, to){
@@ -477,7 +517,6 @@ async function isImageSafe(file){
   return !bad;
 }
 
-function frameNumber(i){ return String(i+1).padStart(3,'0') + 'A'; }
 
 function renderTopBar(){
   const nav = $('topActions');
@@ -491,7 +530,7 @@ function renderTopBar(){
     $('friendsBtn').addEventListener('click', openFriendsModal);
     $('dmBtn').addEventListener('click', openDmList);
     $('newPostBtn').addEventListener('click', () => openOverlay('postOverlay'));
-    $('logoutBtn').addEventListener('click', openProfileModal);
+    $('logoutBtn').addEventListener('click', () => openProfileModal(currentUser.username));
   } else {
     nav.innerHTML = `<button class="btn-primary" id="loginBtn">Войти</button>`;
     $('loginBtn').addEventListener('click', () => { setAuthMode('login'); openOverlay('authOverlay'); });
@@ -518,14 +557,14 @@ function renderFeed(){
     const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
     return `
       <div class="frame">
-        <div class="frame-strip">
-          <span>№ ${frameNumber(idx)}</span>
-          <span>${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
+        <div class="frame-header">
+          <button class="avatar-badge" data-profile="${p.author}">${p.author.charAt(0).toUpperCase()}</button>
+          <button class="author-link" data-profile="${p.author}">@${escapeHtml(p.author)}</button>
+          <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
         </div>
         <img src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
         <div class="frame-info">
           <p class="cap">${escapeHtml(p.cap)}</p>
-          <p class="author">@${escapeHtml(p.author)}</p>
         </div>
         <div class="frame-actions">
           <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
@@ -552,6 +591,13 @@ function escapeHtml(str){
 $('grid').addEventListener('click', async (e) => {
   const likeBtn = e.target.closest('.like-btn');
   const repostBtn = e.target.closest('.repost-btn');
+  const profileBtn = e.target.closest('[data-profile]');
+
+  if(profileBtn){
+    if(!currentUser){ showToast('Войдите, чтобы смотреть профили'); return; }
+    openProfileModal(profileBtn.dataset.profile);
+    return;
+  }
   if(!currentUser && (likeBtn || repostBtn)){
     showToast('Войдите, чтобы взаимодействовать с постами');
     return;
@@ -722,36 +768,67 @@ $('postSubmit').addEventListener('click', async () => {
 });
 
 /* ===================== Profile ===================== */
-async function openProfileModal(){
-  $('profileUsername').textContent = '@' + currentUser.username;
-  const myPosts = postsCache.filter(p => p.author === currentUser.username).sort((a,b) => b.ts - a.ts);
-  $('profilePostCount').textContent = `${myPosts.length} ${myPosts.length === 1 ? 'публикация' : 'публикаций'}`;
-  const container = $('profilePosts');
-  if(myPosts.length === 0){
-    container.innerHTML = `<div class="empty-state">Пока нет ни одной публикации.</div>`;
+function pluralPosts(n){
+  const mod10 = n % 10, mod100 = n % 100;
+  if(mod10 === 1 && mod100 !== 11) return 'публикация';
+  if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return 'публикации';
+  return 'публикаций';
+}
+
+async function openProfileModal(username){
+  const isMe = username === currentUser.username;
+  $('profileUsername').textContent = '@' + username;
+  $('profileAvatar').textContent = username.charAt(0).toUpperCase();
+
+  const userPosts = postsCache.filter(p => p.author === username).sort((a,b) => b.ts - a.ts);
+  $('profilePostCount').textContent = `${userPosts.length} ${pluralPosts(userPosts.length)}`;
+
+  const actions = $('profileActions');
+  if(isMe){
+    actions.innerHTML = `<button class="btn-ghost" id="profileLogoutBtn" style="width:100%;">Выйти из аккаунта</button>`;
+    $('profileLogoutBtn').addEventListener('click', () => { closeOverlay('profileOverlay'); logout(); });
   } else {
-    container.innerHTML = myPosts.map(p => `
-      <div class="frame">
-        <div class="frame-strip">
-          <span>№ ${frameNumber(postsCache.indexOf(p))}</span>
-          <span>${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
-        </div>
-        <img src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
-        <div class="frame-info">
-          <p class="cap">${escapeHtml(p.cap)}</p>
-        </div>
-        <div class="frame-actions">
-          <span style="color:var(--fg-dim); font-size:12px; font-family:'IBM Plex Mono', monospace;">♥ ${(p.likedBy||[]).length} · ⇄ ${(p.repostedBy||[]).length}</span>
-        </div>
+    const status = await getFriendStatus(currentUser.username, username);
+    let friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">+ Добавить в друзья</button>`;
+    if(status){
+      if(status.status === 'accepted') friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Друзья ✓</span>`;
+      else if(status.status === 'pending' && status.requester === currentUser.username) friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Заявка отправлена</span>`;
+      else if(status.status === 'pending') friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">Принять заявку</button>`;
+    }
+    actions.innerHTML = `
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" id="profileMsgBtn" style="flex:1;">Написать</button>
+        ${friendBtnHtml}
       </div>
-    `).join('');
+    `;
+    $('profileMsgBtn').addEventListener('click', () => {
+      closeOverlay('profileOverlay');
+      openChat(username);
+    });
+    const friendBtn = $('profileFriendBtn');
+    if(friendBtn){
+      friendBtn.addEventListener('click', async () => {
+        if(!status){
+          await sendFriendRequest(currentUser.username, username);
+          showToast('Заявка отправлена');
+        } else if(status.status === 'pending' && status.requester !== currentUser.username){
+          await respondFriendRequest(status.id, 'accepted');
+          showToast('Заявка принята');
+        }
+        openProfileModal(username);
+      });
+    }
   }
+
+  const grid = $('profilePosts');
+  if(userPosts.length === 0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Пока нет публикаций.</div>`;
+  } else {
+    grid.innerHTML = userPosts.map(p => `<img src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`).join('');
+  }
+
   openOverlay('profileOverlay');
 }
-$('profileLogoutBtn').addEventListener('click', () => {
-  closeOverlay('profileOverlay');
-  logout();
-});
 
 /* ===================== Friends UI ===================== */
 async function openFriendsModal(){
@@ -823,12 +900,17 @@ async function openFriendsModal(){
 
 /* ===================== DM ===================== */
 async function openDmList(){
-  const others = await listOtherUsers(currentUser.username);
+  const conversations = await listConversations(currentUser.username);
   const listEl = $('userList');
-  if(others.length === 0){
-    listEl.innerHTML = `<div class="empty-state" style="padding:24px;">Пока нет других пользователей.<br>Позовите друзей зарегистрироваться.</div>`;
+  if(conversations.length === 0){
+    listEl.innerHTML = `<div class="empty-state" style="padding:24px;">Нет сообщений.<br>Начните переписку через профиль пользователя.</div>`;
   } else {
-    listEl.innerHTML = others.map(u => `<div class="user-row" data-user="${u}">@${u} <span class="unread-dot"></span></div>`).join('');
+    listEl.innerHTML = conversations.map(c => `
+      <div class="user-row" data-user="${c.user}">
+        <span>@${c.user}</span>
+        <span style="color:var(--fg-dim); font-size:11.5px; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(c.lastMsg.text)}</span>
+      </div>
+    `).join('');
     listEl.querySelectorAll('.user-row').forEach(row => {
       row.addEventListener('click', () => openChat(row.dataset.user));
     });
