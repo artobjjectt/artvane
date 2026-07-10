@@ -99,9 +99,17 @@
     background:var(--surface-2); border:1px solid var(--line); color:var(--fg);
     display:flex; align-items:center; justify-content:center;
     font-family:'Fraunces', serif; font-weight:600; font-size:13px;
-    cursor:pointer; padding:0;
+    cursor:pointer; padding:0; overflow:hidden;
   }
   .avatar-badge.avatar-lg{ width:64px; height:64px; font-size:26px; }
+  .avatar-wrap{ position:relative; flex-shrink:0; }
+  .avatar-edit-btn{
+    position:absolute; bottom:-2px; right:-2px; width:24px; height:24px; border-radius:50%;
+    background:var(--accent); color:#fff; border:2px solid var(--surface);
+    display:none; align-items:center; justify-content:center; font-size:11px;
+    cursor:pointer;
+  }
+  .avatar-edit-btn.show{ display:flex; }
   .author-link{
     background:none; border:none; color:var(--fg); font-weight:600; font-size:13px;
     cursor:pointer; padding:0; font-family:'Inter', sans-serif;
@@ -352,7 +360,11 @@
   <div class="modal" style="max-width:480px;">
     <button class="close" data-close="profileOverlay">✕</button>
     <div class="profile-header">
-      <div class="avatar-badge avatar-lg" id="profileAvatar">A</div>
+      <div class="avatar-wrap">
+        <div class="avatar-badge avatar-lg" id="profileAvatar">A</div>
+        <button class="avatar-edit-btn" id="avatarEditBtn" type="button">✎</button>
+        <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+      </div>
       <div class="profile-header-info">
         <h2 id="profileUsername">@username</h2>
         <p class="profile-stat" id="profilePostCount"></p>
@@ -450,6 +462,28 @@ async function listOtherUsers(excludeUsername){
   const { data, error } = await sb.from('users').select('username').neq('username', excludeUsername);
   if(error){ console.error(error); return []; }
   return data.map(u => u.username);
+}
+
+/* ===================== Avatars ===================== */
+let avatarsByUsername = {};
+async function loadAvatarsForUsers(usernames){
+  const unique = [...new Set(usernames)].filter(u => avatarsByUsername[u] === undefined);
+  if(unique.length === 0) return;
+  const { data, error } = await sb.from('users').select('username, avatar_url').in('username', unique);
+  if(error){ console.error(error); return; }
+  data.forEach(u => { avatarsByUsername[u.username] = u.avatar_url; });
+}
+async function getAvatarUrl(username){
+  if(avatarsByUsername[username] !== undefined) return avatarsByUsername[username];
+  const { data } = await sb.from('users').select('avatar_url').eq('username', username).maybeSingle();
+  const url = data ? data.avatar_url : null;
+  avatarsByUsername[username] = url;
+  return url;
+}
+function avatarInnerHtml(username){
+  const url = avatarsByUsername[username];
+  if(url) return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
+  return escapeHtml(username.charAt(0).toUpperCase());
 }
 
 /* ===================== Posts ===================== */
@@ -638,7 +672,7 @@ function renderFeed(){
     return `
       <div class="frame">
         <div class="frame-header">
-          <button class="avatar-badge" data-profile="${p.author}">${p.author.charAt(0).toUpperCase()}</button>
+          <button class="avatar-badge" data-profile="${p.author}">${avatarInnerHtml(p.author)}</button>
           <button class="author-link" data-profile="${p.author}">@${escapeHtml(p.author)}</button>
           <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
         </div>
@@ -878,7 +912,10 @@ $('postSubmit').addEventListener('click', async () => {
   const img = urlData.publicUrl;
 
   const ok = await insertPost(currentUser.username, img, cap);
-  if(ok) await loadPosts();
+  if(ok){
+    await loadPosts();
+    await loadAvatarsForUsers(postsCache.map(p => p.author));
+  }
 
   btn.disabled = false;
   btn.textContent = 'Опубликовать';
@@ -905,7 +942,9 @@ function pluralPosts(n){
 async function openProfileModal(username){
   const isMe = username === currentUser.username;
   $('profileUsername').textContent = '@' + username;
-  $('profileAvatar').textContent = username.charAt(0).toUpperCase();
+  await getAvatarUrl(username);
+  $('profileAvatar').innerHTML = avatarInnerHtml(username);
+  $('avatarEditBtn').classList.toggle('show', isMe);
 
   const userPosts = postsCache.filter(p => p.author === username).sort((a,b) => b.ts - a.ts);
   $('profilePostCount').textContent = `${userPosts.length} ${pluralPosts(userPosts.length)}`;
@@ -956,6 +995,45 @@ async function openProfileModal(username){
 
   openOverlay('profileOverlay');
 }
+
+$('avatarEditBtn').addEventListener('click', () => $('avatarFileInput').click());
+$('avatarFileInput').addEventListener('change', async () => {
+  const file = $('avatarFileInput').files[0];
+  if(!file) return;
+  const editBtn = $('avatarEditBtn');
+  const originalIcon = editBtn.textContent;
+  editBtn.innerHTML = '<span class="spinner" style="width:10px;height:10px;border-width:1.5px;"></span>';
+
+  const safe = await isImageSafe(file);
+  if(!safe){
+    showToast('Это фото не подходит для аватара');
+    editBtn.textContent = originalIcon;
+    $('avatarFileInput').value = '';
+    return;
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const path = `${currentUser.username}/${Date.now()}-${safeName}`;
+  const { error: uploadError } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+  if(uploadError){
+    console.error(uploadError);
+    showToast('Не получилось загрузить фото');
+    editBtn.textContent = originalIcon;
+    $('avatarFileInput').value = '';
+    return;
+  }
+
+  const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+  const avatarUrl = urlData.publicUrl;
+  await sb.from('users').update({ avatar_url: avatarUrl }).eq('username', currentUser.username);
+  avatarsByUsername[currentUser.username] = avatarUrl;
+
+  $('profileAvatar').innerHTML = avatarInnerHtml(currentUser.username);
+  editBtn.textContent = originalIcon;
+  $('avatarFileInput').value = '';
+  renderFeed();
+  showToast('Аватар обновлён');
+});
 
 /* ===================== Friends UI ===================== */
 async function openFriendsModal(){
@@ -1114,10 +1192,12 @@ async function init(){
   }
   renderTopBar();
   await loadPosts();
+  await loadAvatarsForUsers(postsCache.map(p => p.author));
   renderFeed();
   await refreshBadges();
   feedPollTimer = setInterval(async () => {
     await loadPosts();
+    await loadAvatarsForUsers(postsCache.map(p => p.author));
     renderFeed();
     await refreshBadges();
   }, 8000);
