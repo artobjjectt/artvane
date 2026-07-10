@@ -103,15 +103,13 @@
   .action:hover{ color:var(--fg); }
   .action.liked{ color:var(--accent); }
   .action.reposted{ color:var(--fg); }
-  .mark-wrap{ position:relative; width:18px; height:18px; display:flex; align-items:center; justify-content:center; }
+  .mark-wrap{ position:relative; width:19px; height:19px; display:flex; align-items:center; justify-content:center; }
   .mark-wrap svg{ position:absolute; inset:0; overflow:visible; }
-  .mark-circle{
-    fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linecap:round;
-    stroke-dasharray:70; stroke-dashoffset:70; transition:stroke-dashoffset .35s ease;
+  .heart-path{
+    fill:none; stroke:var(--fg-dim); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round;
+    transition: fill .2s ease, stroke .2s ease;
   }
-  .liked .mark-circle{ stroke-dashoffset:0; }
-  .mark-dot{ width:5px; height:5px; border:1.6px solid var(--fg-dim); border-radius:50%; }
-  .liked .mark-dot{ border-color:var(--accent); background:var(--accent); }
+  .liked .heart-path{ fill:var(--accent); stroke:var(--accent); }
 
   .empty-state{
     text-align:center; padding:60px 20px; color:var(--fg-dim);
@@ -232,7 +230,6 @@
 <main>
   <div class="feed-header">
     <div>
-      <span class="eyebrow">Контрольный лист · лента</span>
       <h1>Artvane</h1>
     </div>
   </div>
@@ -283,6 +280,18 @@
     </div>
     <div class="field-error" id="postError">Заполните оба поля</div>
     <button class="btn-primary" id="postSubmit">Опубликовать</button>
+  </div>
+</div>
+
+<!-- Profile modal -->
+<div class="overlay" id="profileOverlay">
+  <div class="modal" style="max-width:480px;">
+    <button class="close" data-close="profileOverlay">✕</button>
+    <span class="eyebrow">Профиль</span>
+    <h2 id="profileUsername">@username</h2>
+    <p id="profilePostCount" style="color:var(--fg-dim); font-size:13px; margin:-10px 0 16px;"></p>
+    <div id="profilePosts" class="grid" style="gap:14px;"></div>
+    <button class="btn-ghost" id="profileLogoutBtn" style="width:100%; margin-top:18px;">Выйти из аккаунта</button>
   </div>
 </div>
 
@@ -355,7 +364,7 @@ function closeOverlay(id){ $(id).classList.remove('open'); }
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -475,14 +484,14 @@ function renderTopBar(){
   if(currentUser){
     nav.innerHTML = `
       <button class="icon-btn" id="friendsBtn" title="Друзья">👥</button>
-      <button class="icon-btn" id="dmBtn" title="Сообщения">✉<span class="badge" id="dmBadge"></span></button>
+      <button class="icon-btn" id="dmBtn" title="Сообщения">💬<span class="badge" id="dmBadge"></span></button>
       <button class="btn-ghost" id="newPostBtn">+ Пост</button>
       <button class="btn-ghost" id="logoutBtn">${currentUser.username}</button>
     `;
     $('friendsBtn').addEventListener('click', openFriendsModal);
     $('dmBtn').addEventListener('click', openDmList);
     $('newPostBtn').addEventListener('click', () => openOverlay('postOverlay'));
-    $('logoutBtn').addEventListener('click', logout);
+    $('logoutBtn').addEventListener('click', openProfileModal);
   } else {
     nav.innerHTML = `<button class="btn-primary" id="loginBtn">Войти</button>`;
     $('loginBtn').addEventListener('click', () => { setAuthMode('login'); openOverlay('authOverlay'); });
@@ -521,8 +530,7 @@ function renderFeed(){
         <div class="frame-actions">
           <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
             <span class="mark-wrap">
-              <svg viewBox="0 0 20 20"><circle class="mark-circle" cx="10" cy="10" r="8"/></svg>
-              <span class="mark-dot"></span>
+              <svg viewBox="0 0 24 24"><path class="heart-path" d="M12 20.5s-7.5-4.6-10-9.3C0.3 7.8 2 4 5.8 4c2.1 0 3.7 1.2 4.7 2.7C11.5 5.2 13.1 4 15.2 4 19 4 20.7 7.8 19 11.2c-2.5 4.7-10 9.3-10 9.3z"/></svg>
             </span>
             <span>${(p.likedBy||[]).length}</span>
           </button>
@@ -711,6 +719,38 @@ $('postSubmit').addEventListener('click', async () => {
     errEl.textContent = 'Не получилось опубликовать, попробуйте ещё раз';
     errEl.classList.add('show');
   }
+});
+
+/* ===================== Profile ===================== */
+async function openProfileModal(){
+  $('profileUsername').textContent = '@' + currentUser.username;
+  const myPosts = postsCache.filter(p => p.author === currentUser.username).sort((a,b) => b.ts - a.ts);
+  $('profilePostCount').textContent = `${myPosts.length} ${myPosts.length === 1 ? 'публикация' : 'публикаций'}`;
+  const container = $('profilePosts');
+  if(myPosts.length === 0){
+    container.innerHTML = `<div class="empty-state">Пока нет ни одной публикации.</div>`;
+  } else {
+    container.innerHTML = myPosts.map(p => `
+      <div class="frame">
+        <div class="frame-strip">
+          <span>№ ${frameNumber(postsCache.indexOf(p))}</span>
+          <span>${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
+        </div>
+        <img src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
+        <div class="frame-info">
+          <p class="cap">${escapeHtml(p.cap)}</p>
+        </div>
+        <div class="frame-actions">
+          <span style="color:var(--fg-dim); font-size:12px; font-family:'IBM Plex Mono', monospace;">♥ ${(p.likedBy||[]).length} · ⇄ ${(p.repostedBy||[]).length}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+  openOverlay('profileOverlay');
+}
+$('profileLogoutBtn').addEventListener('click', () => {
+  closeOverlay('profileOverlay');
+  logout();
 });
 
 /* ===================== Friends UI ===================== */
