@@ -128,7 +128,7 @@
     100%{ filter: blur(0) grayscale(0) brightness(1) contrast(1); }
   }
   .frame img.developing{ animation: develop 1.6s ease-out; }
-  .frame img{
+  .frame img, .frame video{
     display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
     background:#000;
   }
@@ -175,7 +175,7 @@
   .inline-edit-actions{ display:flex; gap:8px; margin-bottom:6px; }
   .profile-actions{ margin-bottom:18px; }
   .profile-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
-  .profile-grid img{
+  .profile-grid img, .profile-grid video{
     width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; cursor:pointer;
     background:var(--surface-2);
   }
@@ -308,7 +308,7 @@
     display:flex; flex-direction:column;
   }
   .swipe-card:active{ cursor:grabbing; }
-  .swipe-card img{ width:100%; flex:1; object-fit:cover; pointer-events:none; }
+  .swipe-card img, .swipe-card video{ width:100%; flex:1; object-fit:cover; pointer-events:none; }
   .swipe-caption{ padding:12px 14px; }
   .swipe-caption strong{ font-size:13.5px; }
   .swipe-caption p{ margin:2px 0 0; font-size:12.5px; color:var(--fg-dim); }
@@ -358,7 +358,7 @@
   <div class="grid" id="grid"></div>
 </main>
 
-<footer></footer>
+<footer>Artvane, 2026</footer>
 
 <!-- Auth modal -->
 <div class="overlay" id="authOverlay">
@@ -395,14 +395,15 @@
     <h2>Создать пост</h2>
     <div class="field">
       <label class="drop-zone" id="dropZone">
-        <input type="file" id="postImgFile" accept="image/*">
+        <input type="file" id="postImgFile" accept="image/*,video/*">
         <img class="drop-zone-preview" id="dropZonePreview" alt="">
+        <video class="drop-zone-preview" id="dropZoneVideoPreview" muted loop playsinline style="display:none;"></video>
         <button type="button" class="drop-zone-remove" id="dropZoneRemove">✕</button>
         <svg class="drop-zone-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M12 16V4M12 4L7 9M12 4l5 5" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="drop-zone-title">Перетащите фото сюда</span>
+        <span class="drop-zone-title">Перетащите фото или видео сюда</span>
         <span class="drop-zone-sub">или нажмите, чтобы выбрать файл</span>
       </label>
     </div>
@@ -623,13 +624,14 @@ async function loadPosts(){
   if(error){ console.error(error); postsCache = []; return postsCache; }
   postsCache = data.map(p => ({
     id: p.id, img: p.img, cap: p.cap, author: p.author,
+    mediaType: p.media_type || 'image',
     ts: new Date(p.created_at).getTime(),
     likedBy: p.liked_by || [], repostedBy: p.reposted_by || []
   }));
   return postsCache;
 }
-async function insertPost(author, img, cap){
-  const { error } = await sb.from('posts').insert({ author, img, cap, liked_by: [], reposted_by: [] });
+async function insertPost(author, img, cap, mediaType){
+  const { error } = await sb.from('posts').insert({ author, img, cap, media_type: mediaType || 'image', liked_by: [], reposted_by: [] });
   return !error;
 }
 async function updatePostReactions(id, likedBy, repostedBy){
@@ -851,7 +853,10 @@ function renderFeed(){
     const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
     const isOwner = currentUser && p.author === currentUser.username;
     const commentCount = commentCountsByPost[p.id] || 0;
-    const imgClass = sortedIdx === 0 ? 'developing' : '';
+    const imgClass = (sortedIdx === 0 && p.mediaType !== 'video') ? 'developing' : '';
+    const mediaHtml = p.mediaType === 'video'
+      ? `<video src="${p.img}" controls playsinline preload="metadata"></video>`
+      : `<img class="${imgClass}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">`;
     return `
       <div class="frame">
         <div class="frame-header">
@@ -863,7 +868,7 @@ function renderFeed(){
             <button class="post-menu-btn" data-delete="${p.id}" title="Удалить">🗑</button>
           ` : ''}
         </div>
-        <img class="${imgClass}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
+        ${mediaHtml}
         <div class="frame-info">
           <p class="cap">${escapeHtml(p.cap)}</p>
         </div>
@@ -1048,18 +1053,34 @@ $('authSubmit').addEventListener('click', async () => {
 const dropZone = $('dropZone');
 const postImgFileInput = $('postImgFile');
 const dropZonePreview = $('dropZonePreview');
+const dropZoneVideoPreview = $('dropZoneVideoPreview');
 
 function setDropZoneFile(file){
   if(!file) return;
   const dt = new DataTransfer();
   dt.items.add(file);
   postImgFileInput.files = dt.files;
-  dropZonePreview.src = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith('video/');
+  const url = URL.createObjectURL(file);
+  if(isVideo){
+    dropZonePreview.style.display = 'none';
+    dropZonePreview.src = '';
+    dropZoneVideoPreview.style.display = 'block';
+    dropZoneVideoPreview.src = url;
+  } else {
+    dropZoneVideoPreview.style.display = 'none';
+    dropZoneVideoPreview.src = '';
+    dropZonePreview.style.display = 'block';
+    dropZonePreview.src = url;
+  }
   dropZone.classList.add('has-image');
 }
 function clearDropZoneFile(){
   postImgFileInput.value = '';
   dropZonePreview.src = '';
+  dropZonePreview.style.display = 'none';
+  dropZoneVideoPreview.src = '';
+  dropZoneVideoPreview.style.display = 'none';
   dropZone.classList.remove('has-image');
 }
 
@@ -1077,7 +1098,7 @@ dropZone.addEventListener('drop', (e) => {
   e.preventDefault();
   dropZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
-  if(file && file.type.startsWith('image/')) setDropZoneFile(file);
+  if(file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) setDropZoneFile(file);
 });
 $('dropZoneRemove').addEventListener('click', (e) => {
   e.preventDefault();
@@ -1093,31 +1114,35 @@ $('postSubmit').addEventListener('click', async () => {
   errEl.classList.remove('show');
 
   if(!file || !cap){
-    errEl.textContent = 'Выберите фото и добавьте подпись';
+    errEl.textContent = 'Выберите фото или видео и добавьте описание';
     errEl.classList.add('show');
     return;
   }
-  if(file.size > 8 * 1024 * 1024){
-    errEl.textContent = 'Файл слишком большой (максимум 8 МБ)';
+  const isVideo = file.type.startsWith('video/');
+  const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+  if(file.size > maxSize){
+    errEl.textContent = isVideo ? 'Видео слишком большое (максимум 50 МБ)' : 'Файл слишком большой (максимум 8 МБ)';
     errEl.classList.add('show');
     return;
   }
   if(containsBannedWords(cap)){
-    errEl.textContent = 'В подписи есть недопустимые слова, перепишите её';
+    errEl.textContent = 'В описании есть недопустимые слова, перепишите его';
     errEl.classList.add('show');
     return;
   }
 
   const btn = $('postSubmit');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> проверка...';
 
-  const safe = await isImageSafe(file);
-  if(!safe){
-    errEl.textContent = 'Это фото не подходит для публикации';
-    errEl.classList.add('show');
-    btn.disabled = false; btn.textContent = 'Опубликовать';
-    return;
+  if(!isVideo){
+    btn.innerHTML = '<span class="spinner"></span> проверка...';
+    const safe = await isImageSafe(file);
+    if(!safe){
+      errEl.textContent = 'Это фото не подходит для публикации';
+      errEl.classList.add('show');
+      btn.disabled = false; btn.textContent = 'Опубликовать';
+      return;
+    }
   }
   btn.innerHTML = '<span class="spinner"></span>';
 
@@ -1127,7 +1152,7 @@ $('postSubmit').addEventListener('click', async () => {
   const { error: uploadError } = await sb.storage.from('post-images').upload(filePath, file);
   if(uploadError){
     console.error(uploadError);
-    errEl.textContent = 'Не получилось загрузить фото, попробуйте ещё раз';
+    errEl.textContent = 'Не получилось загрузить файл, попробуйте ещё раз';
     errEl.classList.add('show');
     btn.disabled = false; btn.textContent = 'Опубликовать';
     return;
@@ -1136,7 +1161,7 @@ $('postSubmit').addEventListener('click', async () => {
   const { data: urlData } = sb.storage.from('post-images').getPublicUrl(filePath);
   const img = urlData.publicUrl;
 
-  const ok = await insertPost(currentUser.username, img, cap);
+  const ok = await insertPost(currentUser.username, img, cap, isVideo ? 'video' : 'image');
   if(ok){
     await loadPosts();
     await loadAvatarsForUsers(postsCache.map(p => p.author));
@@ -1281,7 +1306,10 @@ async function openProfileModal(username){
   if(userPosts.length === 0){
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Пока нет публикаций.</div>`;
   } else {
-    grid.innerHTML = userPosts.map(p => `<img src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`).join('');
+    grid.innerHTML = userPosts.map(p => p.mediaType === 'video'
+      ? `<video src="${p.img}" muted loop playsinline preload="metadata"></video>`
+      : `<img src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`
+    ).join('');
   }
 
   openOverlay('profileOverlay');
@@ -1573,9 +1601,12 @@ function renderSwipeCard(){
     return;
   }
   const post = swipeQueue[swipeIndex];
+  const mediaHtml = post.mediaType === 'video'
+    ? `<video src="${post.img}" autoplay muted loop playsinline style="pointer-events:none;"></video>`
+    : `<img src="${post.img}" alt="" style="pointer-events:none;">`;
   stack.innerHTML = `
     <div class="swipe-card" id="swipeCard">
-      <img src="${post.img}" alt="">
+      ${mediaHtml}
       <div class="swipe-stamp swipe-like">Нравится</div>
       <div class="swipe-stamp swipe-nope">Мимо</div>
       <div class="swipe-caption">
