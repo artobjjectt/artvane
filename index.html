@@ -26,13 +26,25 @@
     --fg-dim: #8c8c86;
     --line: #2a2a26;
     --accent: #e6432a;
+    --btn-text: #0a0a0a;
   }
+  :root[data-theme="light"]{
+    --bg: #ffffff;
+    --surface: #f7f5f2;
+    --surface-2: #efece6;
+    --fg: #18140f;
+    --fg-dim: #8a8479;
+    --line: #e3ded5;
+    --accent: #d8341c;
+    --btn-text: #ffffff;
+  }
+  html{ transition: background .2s ease; }
   *{ box-sizing: border-box; }
   html,body{
     margin:0; padding:0; background:var(--bg); color:var(--fg);
     font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;
   }
-  ::selection{ background:var(--accent); color:#0a0a0a; }
+  ::selection{ background:var(--accent); color:var(--btn-text); }
 
   header{
     position:sticky; top:0; z-index:50;
@@ -70,7 +82,7 @@
   }
   .badge.show{ display:block; }
   .btn-primary{
-    background:var(--fg); color:#0a0a0a; border:none;
+    background:var(--fg); color:var(--btn-text); border:none;
     padding:8px 16px; border-radius:20px; font-weight:600; font-size:13px;
     cursor:pointer; transition:transform .15s ease, background .2s;
   }
@@ -89,6 +101,31 @@
     text-transform:uppercase; color:var(--accent);
   }
   .feed-header h1{ font-family:'Fraunces', serif; font-weight:400; font-size:28px; margin:4px 0 0; }
+  .feed-mode-btn{
+    display:flex; align-items:center; gap:6px; background:var(--surface);
+    border:1px solid var(--line); color:var(--fg-dim); padding:8px 14px;
+    border-radius:20px; cursor:pointer; font-size:12.5px; font-family:'Inter', sans-serif;
+    transition:border-color .2s ease, color .2s ease;
+  }
+  .feed-mode-btn:hover{ border-color:var(--fg-dim); color:var(--fg); }
+  .feed-mode-btn.active{ border-color:var(--accent); color:var(--accent); }
+
+  .privacy-toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13.5px; color:var(--fg); margin-bottom:6px;
+  }
+  .privacy-switch{ position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; }
+  .privacy-switch input{ opacity:0; width:0; height:0; }
+  .privacy-switch-slider{
+    position:absolute; inset:0; background:var(--line); border-radius:24px; cursor:pointer;
+    transition:background .2s ease;
+  }
+  .privacy-switch-slider::before{
+    content:''; position:absolute; width:18px; height:18px; left:3px; top:3px;
+    background:var(--fg); border-radius:50%; transition:transform .2s ease;
+  }
+  .privacy-switch input:checked + .privacy-switch-slider{ background:var(--accent); }
+  .privacy-switch input:checked + .privacy-switch-slider::before{ transform:translateX(18px); background:#fff; }
 
   .grid{ display:flex; flex-direction:column; gap:20px; }
 
@@ -149,8 +186,8 @@
   .action:hover{ color:var(--fg); }
   .action.liked{ color:var(--accent); }
   .action.reposted{ color:var(--accent); }
-  .mark-wrap{ position:relative; width:19px; height:19px; display:flex; align-items:center; justify-content:center; }
-  .mark-wrap svg{ position:absolute; inset:0; overflow:visible; }
+  .mark-wrap{ position:relative; width:19px; height:19px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .mark-wrap svg{ position:absolute; inset:0; overflow:hidden; }
   .heart-path{
     fill:none; stroke:var(--fg-dim); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round;
     transition: fill .2s ease, stroke .2s ease;
@@ -270,7 +307,7 @@
     font-family:'Inter', sans-serif;
   }
   .row-btn:hover{ color:var(--fg); border-color:var(--fg-dim); }
-  .row-btn.accent{ background:var(--fg); color:#0a0a0a; border:none; }
+  .row-btn.accent{ background:var(--fg); color:var(--btn-text); border:none; }
   .row-btn:disabled{ opacity:0.5; cursor:default; }
 
   .chat-modal .modal{ display:flex; flex-direction:column; height:70vh; max-height:560px; padding:0; }
@@ -281,7 +318,7 @@
   .chat-back{ background:none; border:none; color:var(--fg-dim); cursor:pointer; font-size:16px; }
   .chat-messages{ flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:9px; }
   .msg{ max-width:78%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.4; }
-  .msg.mine{ align-self:flex-end; background:var(--fg); color:#0a0a0a; border-bottom-right-radius:3px; }
+  .msg.mine{ align-self:flex-end; background:var(--fg); color:var(--btn-text); border-bottom-right-radius:3px; }
   .msg.theirs{ align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-bottom-left-radius:3px; }
   .msg-time{ font-size:9.5px; opacity:0.6; margin-top:3px; font-family:'IBM Plex Mono', monospace; }
   .chat-input-row{
@@ -293,14 +330,28 @@
   }
   .chat-input-row input:focus{ outline:none; border-color:var(--fg-dim); }
   .chat-send{
-    background:var(--fg); color:#0a0a0a; border:none; border-radius:50%;
+    background:var(--fg); color:var(--btn-text); border:none; border-radius:50%;
     width:38px; height:38px; cursor:pointer; font-size:15px; flex-shrink:0;
   }
   .chat-send:disabled{ opacity:0.4; }
+  .emoji-toggle-btn{
+    background:none; border:none; font-size:20px; cursor:pointer; flex-shrink:0;
+    width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  }
+  .emoji-panel{
+    display:none; grid-template-columns:repeat(8, 1fr); gap:4px;
+    padding:10px 14px; border-top:1px solid var(--line); max-height:160px; overflow-y:auto;
+  }
+  .emoji-panel.open{ display:grid; }
+  .emoji-panel button{
+    background:none; border:none; font-size:21px; cursor:pointer; padding:6px 0;
+    border-radius:8px; transition:background .15s ease;
+  }
+  .emoji-panel button:hover{ background:var(--surface-2); }
 
   .toast{
     position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
-    background:var(--fg); color:#0a0a0a; padding:11px 18px; border-radius:20px;
+    background:var(--fg); color:var(--btn-text); padding:11px 18px; border-radius:20px;
     font-size:13px; font-weight:600; opacity:0; transition:opacity .25s ease, transform .25s ease;
     pointer-events:none; z-index:200; max-width:90vw; text-align:center;
   }
@@ -343,6 +394,25 @@
     box-shadow:0 14px 34px rgba(0,0,0,0.55);
   }
   .search-panel.open{ display:block; }
+  .search-panel-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .search-input-wrap{ position:relative; }
+  .search-input-wrap input{ padding-right:36px; }
+  .search-clear-btn{
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    background:var(--line); color:var(--fg-dim); border:none; width:22px; height:22px;
+    border-radius:50%; font-size:11px; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+  }
+  .search-clear-btn:hover{ color:var(--fg); }
+  .password-toggle-btn{
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--fg-dim); cursor:pointer;
+    font-size:15px; width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    opacity:0.7;
+  }
+  .password-toggle-btn:hover{ opacity:1; }
 
   .spinner{
     display:inline-block; width:14px; height:14px; border:2px solid var(--fg-dim);
@@ -379,21 +449,21 @@
       min-width:48px; min-height:48px; justify-content:center;
       cursor:pointer; position:relative;
     }
-    .bottom-nav-btn svg{ width:23px; height:23px; }
+    .bottom-nav-btn svg{ width:26px; height:26px; }
     .bottom-nav-btn.active{ color:var(--fg); }
     .bottom-nav-btn .badge{ top:2px; right:2px; }
     .bottom-nav-avatar{
-      width:26px; height:26px; border-radius:50%; overflow:hidden;
+      width:29px; height:29px; border-radius:50%; overflow:hidden;
       display:flex; align-items:center; justify-content:center;
       background:var(--surface-2); border:1px solid var(--line);
-      font-size:12px; font-family:'Fraunces', serif; font-weight:600; color:var(--fg);
+      font-size:13px; font-family:'Fraunces', serif; font-weight:600; color:var(--fg);
     }
     .bottom-nav-post{
-      width:46px; height:46px; border-radius:50%; background:var(--fg); color:#0a0a0a;
-      display:flex; align-items:center; justify-content:center; margin-top:-14px;
+      width:50px; height:50px; border-radius:50%; background:var(--fg); color:var(--btn-text);
+      display:flex; align-items:center; justify-content:center; margin-top:-16px;
       box-shadow:0 4px 14px rgba(0,0,0,0.4);
     }
-    .bottom-nav-post svg{ width:22px; height:22px; }
+    .bottom-nav-post svg{ width:24px; height:24px; }
 
     main{ padding:18px 12px calc(96px + env(safe-area-inset-bottom)); }
     .frame{ border-radius:16px; }
@@ -406,7 +476,7 @@
     .frame-info .cap{ font-size:14.5px; }
     .frame-actions{ padding:8px 15px 15px; gap:20px; }
     .action{ font-size:13.5px; gap:8px; }
-    .mark-wrap{ width:21px; height:21px; }
+    .mark-wrap{ width:23px; height:23px; }
 
     .overlay{ align-items:flex-end; padding:0; }
     .overlay .modal{
@@ -428,11 +498,10 @@
     .user-row{ padding:12px 14px; font-size:14.5px; }
 
     .search-panel{
-      position:fixed; top:auto; bottom:0; left:0; right:0; width:100%;
-      max-height:70vh; border-radius:22px 22px 0 0;
+      position:fixed; top:max(64px, env(safe-area-inset-top)); left:12px; right:12px; width:auto;
+      max-height:75vh; border-radius:18px;
       transform:translateY(calc(-1 * var(--keyboard-offset)));
       transition:transform .15s ease;
-      padding-bottom:calc(14px + env(safe-area-inset-bottom));
     }
 
     .swipe-stack{ height:56vh; }
@@ -453,8 +522,15 @@
 <main>
   <div class="feed-header">
     <div>
-      <h1>Artvane</h1>
+      <h1 id="feedTitle">Artvane</h1>
     </div>
+    <button class="feed-mode-btn" id="feedModeBtn" title="Переключить на «Мир»">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"/>
+      </svg>
+      <span id="feedModeLabel">Мир</span>
+    </button>
   </div>
   <div class="grid" id="grid"></div>
 </main>
@@ -477,7 +553,10 @@
     </div>
     <div class="field">
       <label>Пароль</label>
-      <input type="password" id="authPassword" placeholder="••••••••">
+      <div class="search-input-wrap">
+        <input type="password" id="authPassword" placeholder="••••••••" style="padding-right:40px;">
+        <button type="button" class="password-toggle-btn" id="passwordToggleBtn" title="Показать пароль">👁</button>
+      </div>
     </div>
     <div class="field-error" id="authError">Неверные данные</div>
     <button class="btn-primary" id="authSubmit">Войти</button>
@@ -572,7 +651,14 @@
 
 <!-- Inline search panel (anchored under header, not a separate window) -->
 <div class="search-panel" id="searchPanel">
-  <input type="text" id="userSearchInput" placeholder="Введите имя..." class="inline-edit-input" style="margin-bottom:0;">
+  <div class="search-panel-head">
+    <span class="eyebrow">Поиск людей</span>
+    <button class="close" id="searchPanelClose" style="position:static;">✕</button>
+  </div>
+  <div class="search-input-wrap">
+    <input type="text" id="userSearchInput" placeholder="Введите имя..." class="inline-edit-input" style="margin-bottom:0;">
+    <button class="search-clear-btn" id="searchClearBtn" style="display:none;">✕</button>
+  </div>
   <div class="user-list" id="allUsersList" style="margin-top:10px;"></div>
 </div>
 
@@ -610,7 +696,9 @@
       <span id="chatWithName">—</span>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
+    <div class="emoji-panel" id="emojiPanel"></div>
     <div class="chat-input-row">
+      <button class="emoji-toggle-btn" id="emojiToggleBtn" type="button">😊</button>
       <input type="text" id="chatInput" placeholder="Сообщение...">
       <button class="chat-send" id="chatSend">➤</button>
     </div>
@@ -629,6 +717,26 @@
       <input type="text" id="commentInput" placeholder="Написать комментарий...">
       <button class="chat-send" id="commentSend">➤</button>
     </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <button class="close" data-close="settingsOverlay">✕</button>
+    <span class="eyebrow">Настройки</span>
+    <h2>Настройки</h2>
+
+    <div class="privacy-toggle-row">
+      <span>Светлая тема</span>
+      <label class="privacy-switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="privacy-switch-slider"></span>
+      </label>
+    </div>
+
+    <label style="display:block; font-size:11px; color:var(--fg-dim); margin:20px 0 8px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">Заблокированные пользователи</label>
+    <div class="user-list" id="blockedListEl"></div>
   </div>
 </div>
 
@@ -728,7 +836,7 @@ function showConfirm(message, okLabel){
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay','settingsOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -752,24 +860,27 @@ async function listOtherUsers(excludeUsername){
 let avatarsByUsername = {};
 let bioByUsername = {};
 let displayNameByUsername = {};
+let isPrivateByUsername = {};
 async function loadAvatarsForUsers(usernames){
   const unique = [...new Set(usernames)].filter(u => avatarsByUsername[u] === undefined);
   if(unique.length === 0) return;
-  const { data, error } = await sb.from('users').select('username, avatar_url, bio, display_name').in('username', unique);
+  const { data, error } = await sb.from('users').select('username, avatar_url, bio, display_name, is_private').in('username', unique);
   if(error){ console.error(error); return; }
   data.forEach(u => {
     avatarsByUsername[u.username] = u.avatar_url;
     bioByUsername[u.username] = u.bio;
     displayNameByUsername[u.username] = u.display_name;
+    isPrivateByUsername[u.username] = !!u.is_private;
   });
 }
 async function getAvatarUrl(username){
   if(avatarsByUsername[username] !== undefined) return avatarsByUsername[username];
-  const { data } = await sb.from('users').select('avatar_url, bio, display_name').eq('username', username).maybeSingle();
+  const { data } = await sb.from('users').select('avatar_url, bio, display_name, is_private').eq('username', username).maybeSingle();
   const url = data ? data.avatar_url : null;
   avatarsByUsername[username] = url;
   bioByUsername[username] = data ? data.bio : null;
   displayNameByUsername[username] = data ? data.display_name : null;
+  isPrivateByUsername[username] = data ? !!data.is_private : false;
   return url;
 }
 function avatarInnerHtml(username){
@@ -906,6 +1017,38 @@ async function listFriends(username){
   if(error){ console.error(error); return []; }
   return data.map(f => f.requester === username ? f.recipient : f.requester);
 }
+async function removeFriendship(username, otherUsername){
+  const { error } = await sb.from('friends')
+    .delete()
+    .or(`and(requester.eq.${username},recipient.eq.${otherUsername}),and(requester.eq.${otherUsername},recipient.eq.${username})`);
+  return !error;
+}
+async function blockUser(me, them){
+  await removeFriendship(me, them);
+  const { error } = await sb.from('friends').insert({ requester: me, recipient: them, status: 'blocked' });
+  return !error;
+}
+async function unblockUser(me, them){
+  const { error } = await sb.from('friends').delete().eq('requester', me).eq('recipient', them).eq('status', 'blocked');
+  return !error;
+}
+async function isBlockedByMe(me, them){
+  const { data } = await sb.from('friends').select('*').eq('requester', me).eq('recipient', them).eq('status', 'blocked').maybeSingle();
+  return !!data;
+}
+async function isBlockedEitherWay(me, them){
+  const { data } = await sb.from('friends')
+    .select('*')
+    .or(`and(requester.eq.${me},recipient.eq.${them}),and(requester.eq.${them},recipient.eq.${me})`)
+    .eq('status', 'blocked')
+    .maybeSingle();
+  return !!data;
+}
+async function listBlockedUsers(username){
+  const { data, error } = await sb.from('friends').select('*').eq('requester', username).eq('status', 'blocked');
+  if(error){ console.error(error); return []; }
+  return data.map(f => f.recipient);
+}
 
 async function refreshBadges(){
   if(!currentUser) return;
@@ -962,6 +1105,31 @@ async function isImageSafe(file){
 }
 
 
+function updateFeedModeUI(){
+  const btn = $('feedModeBtn');
+  const label = $('feedModeLabel');
+  const title = $('feedTitle');
+  if(!currentUser){ btn.style.display = 'none'; title.textContent = 'Artvane'; return; }
+  btn.style.display = 'flex';
+  if(feedMode === 'home'){
+    label.textContent = 'Мир';
+    btn.classList.remove('active');
+    btn.title = 'Показать публикации всех (не только друзей)';
+    title.textContent = 'Artvane';
+  } else {
+    label.textContent = 'Моя лента';
+    btn.classList.add('active');
+    btn.title = 'Вернуться к друзьям и своим публикациям';
+    title.textContent = 'Мир';
+  }
+}
+$('feedModeBtn').addEventListener('click', async () => {
+  feedMode = feedMode === 'home' ? 'world' : 'home';
+  updateFeedModeUI();
+  lastFeedSignature = '';
+  renderFeed();
+});
+
 function renderTopBar(){
   const nav = $('topActions');
   if(currentUser){
@@ -1007,6 +1175,7 @@ function renderTopBar(){
     $('loginBtn').addEventListener('click', () => { setAuthMode('login'); openOverlay('authOverlay'); });
   }
   renderBottomNav();
+  updateFeedModeUI();
 }
 
 function renderBottomNav(){
@@ -1079,14 +1248,50 @@ function logout(){
   showToast('Вы вышли');
 }
 
+let blockedUsernames = new Set();
+async function refreshBlockedSet(){
+  if(!currentUser){ blockedUsernames = new Set(); return; }
+  const { data, error } = await sb.from('friends')
+    .select('*')
+    .or(`requester.eq.${currentUser.username},recipient.eq.${currentUser.username}`)
+    .eq('status', 'blocked');
+  if(error){ console.error(error); return; }
+  const set = new Set();
+  data.forEach(f => {
+    set.add(f.requester === currentUser.username ? f.recipient : f.requester);
+  });
+  blockedUsernames = set;
+}
+
+let feedMode = 'home'; // 'home' (friends+me) or 'world' (everyone public)
+let myFriendsSet = new Set();
+async function refreshMyFriendsSet(){
+  if(!currentUser){ myFriendsSet = new Set(); return; }
+  const friends = await listFriends(currentUser.username);
+  myFriendsSet = new Set(friends);
+}
+
 let lastDevelopedPostId = null;
 function renderFeed(){
   const grid = $('grid');
-  if(postsCache.length === 0){
-    grid.innerHTML = `<div class="empty-state">Пока нет ни одного поста.<br>Войдите и добавьте первый кадр.</div>`;
+  const allSorted = [...postsCache].sort((a,b) => b.ts - a.ts);
+  let sorted = allSorted.filter(p => !blockedUsernames.has(p.author));
+  if(currentUser){
+    if(feedMode === 'home'){
+      sorted = sorted.filter(p => p.author === currentUser.username || myFriendsSet.has(p.author));
+    } else {
+      sorted = sorted.filter(p => p.author === currentUser.username || myFriendsSet.has(p.author) || !isPrivateByUsername[p.author]);
+    }
+  } else {
+    sorted = sorted.filter(p => !isPrivateByUsername[p.author]);
+  }
+  if(sorted.length === 0){
+    const msg = feedMode === 'home'
+      ? 'Пока нет публикаций от вас и друзей.<br>Загляните в «Мир» 🌍, чтобы увидеть всех.'
+      : 'Пока нет публикаций.';
+    grid.innerHTML = `<div class="empty-state">${currentUser ? msg : 'Пока нет ни одного поста.<br>Войдите и добавьте первый кадр.'}</div>`;
     return;
   }
-  const sorted = [...postsCache].sort((a,b) => b.ts - a.ts);
   const topPostId = sorted[0].id;
   const isFirstRenderOfThisTop = topPostId !== lastDevelopedPostId;
   lastDevelopedPostId = topPostId;
@@ -1116,7 +1321,7 @@ function renderFeed(){
         <div class="frame-actions">
           <button class="action like-btn ${liked ? 'liked' : ''}" data-idx="${idx}">
             <span class="mark-wrap">
-              <svg viewBox="0 0 24 24"><path class="heart-path" d="M12 20.5s-7.5-4.6-10-9.3C0.3 7.8 2 4 5.8 4c2.1 0 3.7 1.2 4.7 2.7C11.5 5.2 13.1 4 15.2 4 19 4 20.7 7.8 19 11.2c-2.5 4.7-10 9.3-10 9.3z"/></svg>
+              <svg viewBox="-1.5 -1.5 27 27"><path class="heart-path" d="M12 20.5s-7.5-4.6-10-9.3C0.3 7.8 2 4 5.8 4c2.1 0 3.7 1.2 4.7 2.7C11.5 5.2 13.1 4 15.2 4 19 4 20.7 7.8 19 11.2c-2.5 4.7-10 9.3-10 9.3z"/></svg>
             </span>
             <span>${(p.likedBy||[]).length}</span>
           </button>
@@ -1238,6 +1443,12 @@ function setAuthMode(mode){
   }
 }
 $('authSwitchBtn').addEventListener('click', () => setAuthMode(authMode === 'login' ? 'signup' : 'login'));
+$('passwordToggleBtn').addEventListener('click', () => {
+  const input = $('authPassword');
+  const btn = $('passwordToggleBtn');
+  if(input.type === 'password'){ input.type = 'text'; btn.style.opacity = '1'; }
+  else { input.type = 'password'; btn.style.opacity = '0.7'; }
+});
 
 $('authSubmit').addEventListener('click', async () => {
   const username = $('authUsername').value.trim();
@@ -1294,6 +1505,8 @@ $('authSubmit').addEventListener('click', async () => {
   $('authDisplayName').value = '';
   localStorage.setItem('artvane_username', currentUser.username);
   renderTopBar();
+  await refreshMyFriendsSet();
+  await refreshBlockedSet();
   renderFeed();
   refreshBadges();
 });
@@ -1457,6 +1670,47 @@ function resetBioEditUI(username){
   }
 }
 
+/* ===================== Settings ===================== */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('artvane_theme', theme);
+}
+function initTheme(){
+  const saved = localStorage.getItem('artvane_theme') || 'dark';
+  applyTheme(saved);
+}
+$('themeToggle').addEventListener('change', (e) => {
+  applyTheme(e.target.checked ? 'light' : 'dark');
+});
+
+async function openSettingsModal(){
+  $('themeToggle').checked = (localStorage.getItem('artvane_theme') === 'light');
+  const blocked = await listBlockedUsers(currentUser.username);
+  await loadAvatarsForUsers(blocked);
+  const blockedListEl = $('blockedListEl');
+  if(blocked.length === 0){
+    blockedListEl.innerHTML = `<div class="empty-state" style="padding:16px; font-size:12px;">Никого не заблокировано.</div>`;
+  } else {
+    blockedListEl.innerHTML = blocked.map(u => `
+      <div class="user-row">
+        <span>${escapeHtml(displayNameFor(u))}</span>
+        <button class="row-btn" data-unblock="${u}">Разблокировать</button>
+      </div>
+    `).join('');
+    blockedListEl.querySelectorAll('[data-unblock]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await unblockUser(currentUser.username, btn.dataset.unblock);
+        await refreshBlockedSet();
+        lastFeedSignature = '';
+        renderFeed();
+        showToast('Пользователь разблокирован');
+        openSettingsModal();
+      });
+    });
+  }
+  openOverlay('settingsOverlay');
+}
+
 async function openProfileModal(username){
   const isMe = username === currentUser.username;
   await getAvatarUrl(username);
@@ -1517,37 +1771,106 @@ async function openProfileModal(username){
 
   const actions = $('profileActions');
   if(isMe){
-    actions.innerHTML = `<button class="btn-ghost" id="profileLogoutBtn" style="width:100%;">Выйти из аккаунта</button>`;
+    const isPrivate = !!isPrivateByUsername[username];
+    actions.innerHTML = `
+      <div class="privacy-toggle-row">
+        <span>${isPrivate ? 'Закрытый аккаунт' : 'Открытый аккаунт'}</span>
+        <label class="privacy-switch">
+          <input type="checkbox" id="privacyToggle" ${isPrivate ? 'checked' : ''}>
+          <span class="privacy-switch-slider"></span>
+        </label>
+      </div>
+      <p style="font-size:11.5px; color:var(--fg-dim); margin:-4px 0 14px;">
+        ${isPrivate ? 'Ваши публикации в разделе «Мир» видят только друзья.' : 'Ваши публикации в разделе «Мир» видят все.'}
+      </p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-ghost" id="profileSettingsBtn" style="flex:1;">⚙ Настройки</button>
+        <button class="btn-ghost" id="profileLogoutBtn" style="flex:1;">Выйти</button>
+      </div>
+    `;
+    $('privacyToggle').addEventListener('change', async (e) => {
+      const newValue = e.target.checked;
+      await sb.from('users').update({ is_private: newValue }).eq('username', username);
+      isPrivateByUsername[username] = newValue;
+      lastFeedSignature = '';
+      renderFeed();
+      openProfileModal(username);
+    });
+    $('profileSettingsBtn').addEventListener('click', () => { closeOverlay('profileOverlay'); openSettingsModal(); });
     $('profileLogoutBtn').addEventListener('click', () => { closeOverlay('profileOverlay'); logout(); });
   } else {
     const status = await getFriendStatus(currentUser.username, username);
-    let friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">+ Добавить в друзья</button>`;
-    if(status){
-      if(status.status === 'accepted') friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Друзья ✓</span>`;
-      else if(status.status === 'pending' && status.requester === currentUser.username) friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Заявка отправлена</span>`;
-      else if(status.status === 'pending') friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">Принять заявку</button>`;
-    }
-    actions.innerHTML = `
-      <div style="display:flex; gap:8px;">
-        <button class="btn-primary" id="profileMsgBtn" style="flex:1;">Написать</button>
-        ${friendBtnHtml}
-      </div>
-    `;
-    $('profileMsgBtn').addEventListener('click', () => {
-      closeOverlay('profileOverlay');
-      openChat(username);
-    });
-    const friendBtn = $('profileFriendBtn');
-    if(friendBtn){
-      friendBtn.addEventListener('click', async () => {
-        if(!status){
-          await sendFriendRequest(currentUser.username, username);
-          showToast('Заявка отправлена');
-        } else if(status.status === 'pending' && status.requester !== currentUser.username){
-          await respondFriendRequest(status.id, 'accepted');
-          showToast('Заявка принята');
-        }
+
+    if(status && status.status === 'blocked' && status.requester === username){
+      actions.innerHTML = `<div class="empty-state" style="padding:14px; font-size:12.5px;">Этот пользователь ограничил вам доступ.</div>`;
+    } else if(status && status.status === 'blocked' && status.requester === currentUser.username){
+      actions.innerHTML = `<button class="btn-ghost" id="unblockBtn" style="width:100%;">Разблокировать</button>`;
+      $('unblockBtn').addEventListener('click', async () => {
+        await unblockUser(currentUser.username, username);
+        await refreshBlockedSet();
+        showToast('Пользователь разблокирован');
         openProfileModal(username);
+      });
+    } else {
+      let friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">+ Добавить в друзья</button>`;
+      let showUnfriend = false;
+      if(status){
+        if(status.status === 'accepted'){ friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Друзья ✓</span>`; showUnfriend = true; }
+        else if(status.status === 'pending' && status.requester === currentUser.username) friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Заявка отправлена</span>`;
+        else if(status.status === 'pending') friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">Принять заявку</button>`;
+      }
+      actions.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="btn-primary" id="profileMsgBtn" style="flex:1;">Написать</button>
+          ${friendBtnHtml}
+        </div>
+        <div style="display:flex; gap:8px;">
+          ${showUnfriend ? `<button class="row-btn" id="unfriendBtn" style="flex:1;">Убрать из друзей</button>` : ''}
+          <button class="row-btn" id="blockBtn" style="flex:1; color:var(--accent); border-color:var(--accent);">Заблокировать</button>
+        </div>
+      `;
+      $('profileMsgBtn').addEventListener('click', () => {
+        closeOverlay('profileOverlay');
+        openChat(username);
+      });
+      const friendBtn = $('profileFriendBtn');
+      if(friendBtn){
+        friendBtn.addEventListener('click', async () => {
+          if(!status){
+            await sendFriendRequest(currentUser.username, username);
+            showToast('Заявка отправлена');
+          } else if(status.status === 'pending' && status.requester !== currentUser.username){
+            await respondFriendRequest(status.id, 'accepted');
+            showToast('Заявка принята');
+          }
+          openProfileModal(username);
+        });
+      }
+      const unfriendBtn = $('unfriendBtn');
+      if(unfriendBtn){
+        unfriendBtn.addEventListener('click', async () => {
+          const ok = await showConfirm(`Убрать ${displayNameFor(username)} из друзей?`, 'Убрать');
+          if(ok){
+            await removeFriendship(currentUser.username, username);
+            await refreshMyFriendsSet();
+            showToast('Удалено из друзей');
+            lastFeedSignature = '';
+            renderFeed();
+            openProfileModal(username);
+          }
+        });
+      }
+      $('blockBtn').addEventListener('click', async () => {
+        const ok = await showConfirm(`Заблокировать ${displayNameFor(username)}? Вы перестанете видеть публикации друг друга.`, 'Заблокировать');
+        if(ok){
+          await blockUser(currentUser.username, username);
+          await refreshMyFriendsSet();
+          await refreshBlockedSet();
+          showToast('Пользователь заблокирован');
+          closeOverlay('profileOverlay');
+          lastFeedSignature = '';
+          renderFeed();
+        }
       });
     }
   }
@@ -1635,7 +1958,10 @@ async function openFriendsModal(){
     pendingList.querySelectorAll('[data-accept]').forEach(btn => {
       btn.addEventListener('click', async () => {
         await respondFriendRequest(btn.dataset.accept, 'accepted');
+        await refreshMyFriendsSet();
         showToast('Заявка принята');
+        lastFeedSignature = '';
+        renderFeed();
         openFriendsModal();
         refreshBadges();
       });
@@ -1676,62 +2002,85 @@ function toggleSearchPanel(){
 document.addEventListener('click', (e) => {
   const panel = $('searchPanel');
   if(!panel || !panel.classList.contains('open')) return;
-  if(panel.contains(e.target) || e.target.closest('#searchBtn')) return;
+  if(panel.contains(e.target) || e.target.closest('#searchBtn') || e.target.closest('#bnSearchBtn')) return;
   panel.classList.remove('open');
 });
+$('searchPanelClose').addEventListener('click', () => $('searchPanel').classList.remove('open'));
+$('searchClearBtn').addEventListener('click', () => {
+  $('userSearchInput').value = '';
+  $('searchClearBtn').style.display = 'none';
+  $('allUsersList').innerHTML = '';
+  $('userSearchInput').focus();
+});
 
-async function openSearchPanel(){
+function openSearchPanel(){
   $('searchPanel').classList.add('open');
   $('userSearchInput').value = '';
+  $('searchClearBtn').style.display = 'none';
+  $('allUsersList').innerHTML = `<div class="empty-state" style="padding:16px; font-size:12px;">Начните вводить имя</div>`;
   $('userSearchInput').focus();
-  const others = await listOtherUsers(currentUser.username);
-  await loadAvatarsForUsers(others);
-
-  const allUsersList = $('allUsersList');
-  if(others.length === 0){
-    allUsersList.innerHTML = `<div class="empty-state" style="padding:20px;">Пока нет других пользователей.</div>`;
-  } else {
-    allUsersList.innerHTML = others.map(u => `<div class="user-row" data-username="${u}"><span>${escapeHtml(displayNameFor(u))}</span><span class="friend-slot" data-slot="${u}">...</span></div>`).join('');
-    for(const u of others){
-      const status = await getFriendStatus(currentUser.username, u);
-      const slot = allUsersList.querySelector(`[data-slot="${u}"]`);
-      if(!slot) continue;
-      if(!status){
-        slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
-      } else if(status.status === 'accepted'){
-        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Друзья ✓</span>`;
-      } else if(status.status === 'pending' && status.requester === currentUser.username){
-        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Заявка отправлена</span>`;
-      } else if(status.status === 'pending'){
-        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Ждёт вашего ответа</span>`;
-      } else {
-        slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
-      }
-    }
-    allUsersList.querySelectorAll('[data-request]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await sendFriendRequest(currentUser.username, btn.dataset.request);
-        showToast('Заявка отправлена');
-        openSearchPanel();
-      });
-    });
-    allUsersList.querySelectorAll('.user-row').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if(e.target.closest('[data-request]')) return;
-        $('searchPanel').classList.remove('open');
-        openProfileModal(row.dataset.username);
-      });
-    });
-  }
 }
 
-$('userSearchInput').addEventListener('input', () => {
-  const query = $('userSearchInput').value.trim().toLowerCase();
-  $('allUsersList').querySelectorAll('.user-row').forEach(row => {
-    const name = displayNameFor(row.dataset.username || '').toLowerCase();
-    row.style.display = name.includes(query) ? '' : 'none';
+async function runUserSearch(query){
+  const allUsersList = $('allUsersList');
+  if(!query){
+    allUsersList.innerHTML = `<div class="empty-state" style="padding:16px; font-size:12px;">Начните вводить имя</div>`;
+    return;
+  }
+  const { data, error } = await sb.from('users')
+    .select('username, display_name')
+    .neq('username', currentUser.username)
+    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+    .limit(20);
+  if(error){ console.error(error); return; }
+  const results = data.map(u => u.username).filter(u => !blockedUsernames.has(u));
+  results.forEach(u => { if(!displayNameByUsername[u]) displayNameByUsername[u] = data.find(d => d.username === u).display_name; });
+  await loadAvatarsForUsers(results);
+
+  if(results.length === 0){
+    allUsersList.innerHTML = `<div class="empty-state" style="padding:16px; font-size:12px;">Никого не нашлось</div>`;
+    return;
+  }
+  allUsersList.innerHTML = results.map(u => `<div class="user-row" data-username="${u}"><span>${escapeHtml(displayNameFor(u))}</span><span class="friend-slot" data-slot="${u}">...</span></div>`).join('');
+  for(const u of results){
+    const status = await getFriendStatus(currentUser.username, u);
+    const slot = allUsersList.querySelector(`[data-slot="${u}"]`);
+    if(!slot) continue;
+    if(!status){
+      slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
+    } else if(status.status === 'accepted'){
+      slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Друзья ✓</span>`;
+    } else if(status.status === 'pending' && status.requester === currentUser.username){
+      slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Заявка отправлена</span>`;
+    } else if(status.status === 'pending'){
+      slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Ждёт вашего ответа</span>`;
+    } else {
+      slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
+    }
+  }
+  allUsersList.querySelectorAll('[data-request]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await sendFriendRequest(currentUser.username, btn.dataset.request);
+      showToast('Заявка отправлена');
+      runUserSearch($('userSearchInput').value.trim());
+    });
   });
+  allUsersList.querySelectorAll('.user-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if(e.target.closest('[data-request]')) return;
+      $('searchPanel').classList.remove('open');
+      openProfileModal(row.dataset.username);
+    });
+  });
+}
+
+let searchDebounceTimer = null;
+$('userSearchInput').addEventListener('input', () => {
+  const query = $('userSearchInput').value.trim();
+  $('searchClearBtn').style.display = query ? 'flex' : 'none';
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => runUserSearch(query), 250);
 });
 
 /* ===================== DM ===================== */
@@ -1797,6 +2146,7 @@ async function openChat(withUser){
   $('chatWithName').textContent = displayNameFor(withUser);
   closeOverlay('dmListOverlay');
   openOverlay('chatOverlay');
+  $('emojiPanel').classList.remove('open');
   await renderChatMessages();
   await markConversationRead(currentUser.username, withUser);
   await refreshBadges();
@@ -1830,6 +2180,26 @@ async function sendChatMessage(){
   await sendMessage(currentUser.username, dmWithUser, text);
   await renderChatMessages();
 }
+
+/* ===================== Emoji picker ===================== */
+const EMOJI_LIST = [
+  '😀','😂','🥰','😍','😘','😉','😊','🙂','😎','🤩','😢','😭','😡','😱','🥳','🤔',
+  '👍','👎','🙏','👏','🤝','💪','✌️','🤙','❤️','🧡','💛','💚','💙','💜','🖤','🤍',
+  '🔥','✨','🎉','🎊','💯','⭐','🌟','💫','☕','🍕','🍔','🍰','🎂','🍿','🍫','🍩',
+  '🐶','🐱','🦊','🐻','🐼','🦄','🌸','🌈','☀️','🌙','⚡','💧','🎶','📸','🎁','💌'
+];
+const emojiPanel = $('emojiPanel');
+emojiPanel.innerHTML = EMOJI_LIST.map(e => `<button type="button">${e}</button>`).join('');
+emojiPanel.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const input = $('chatInput');
+  input.value += btn.textContent;
+  input.focus();
+});
+$('emojiToggleBtn').addEventListener('click', () => {
+  emojiPanel.classList.toggle('open');
+});
 
 $('chatBack').addEventListener('click', () => {
   closeOverlay('chatOverlay');
@@ -1983,6 +2353,8 @@ async function init(){
     else localStorage.removeItem('artvane_username');
   }
   renderTopBar();
+  await refreshMyFriendsSet();
+  await refreshBlockedSet();
   await loadPosts();
   await loadAvatarsForUsers(postsCache.map(p => p.author));
   await loadCommentCounts(postsCache.map(p => p.id));
@@ -2001,6 +2373,7 @@ async function init(){
     await refreshBadges();
   }, 15000);
 }
+initTheme();
 init();
 
 if('serviceWorker' in navigator){
