@@ -354,6 +354,21 @@
   }
   .emoji-panel button:hover{ background:var(--surface-2); }
 
+  .lightbox-overlay{ background:rgba(0,0,0,0.94); backdrop-filter:blur(6px); cursor:zoom-out; }
+  .lightbox-content{
+    max-width:min(90vw, 700px); max-height:88vh; display:flex; flex-direction:column;
+    align-items:center; cursor:default;
+  }
+  .lightbox-content img{
+    max-width:100%; max-height:80vh; object-fit:contain; border-radius:10px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
+  .lightbox-content p{
+    color:#f2f0ea; font-size:13.5px; margin-top:14px; text-align:center; max-width:520px;
+    padding:0 16px;
+  }
+  .frame img[data-post-id], .profile-grid img{ cursor:zoom-in; }
+
   .toast{
     position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
     background:var(--fg); color:var(--btn-text); padding:11px 18px; border-radius:20px;
@@ -730,6 +745,15 @@
   </div>
 </div>
 
+<!-- Photo lightbox -->
+<div class="overlay lightbox-overlay" id="lightboxOverlay">
+  <button class="close" data-close="lightboxOverlay" style="color:#fff; z-index:2;">✕</button>
+  <div class="lightbox-content">
+    <img id="lightboxImg" src="" alt="">
+    <p id="lightboxCaption"></p>
+  </div>
+</div>
+
 <!-- Settings modal -->
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
@@ -846,7 +870,7 @@ function showConfirm(message, okLabel){
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay','settingsOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay','settingsOverlay','lightboxOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -1119,13 +1143,13 @@ function updateFeedModeUI(){
   const btn = $('feedModeBtn');
   const label = $('feedModeLabel');
   const title = $('feedTitle');
-  if(!currentUser){ btn.style.display = 'none'; title.textContent = 'Artvane'; return; }
+  if(!currentUser){ btn.style.display = 'none'; title.textContent = 'Лента'; return; }
   btn.style.display = 'flex';
   if(feedMode === 'home'){
     label.textContent = 'Мир';
     btn.classList.remove('active');
     btn.title = 'Показать публикации всех (не только друзей)';
-    title.textContent = 'Artvane';
+    title.textContent = 'Лента';
   } else {
     label.textContent = 'Моя лента';
     btn.classList.add('active');
@@ -1314,7 +1338,7 @@ function renderFeed(){
     const imgClass = (sortedIdx === 0 && isFirstRenderOfThisTop && p.mediaType !== 'video') ? 'developing' : '';
     const mediaHtml = p.mediaType === 'video'
       ? `<video src="${p.img}" controls playsinline preload="metadata"></video>`
-      : `<img class="${imgClass}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">`;
+      : `<img class="${imgClass}" data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">`;
     return `
       <div class="frame">
         <div class="frame-header">
@@ -1363,6 +1387,12 @@ function escapeHtml(str){
 }
 
 $('grid').addEventListener('click', async (e) => {
+  const photoEl = e.target.closest('img[data-post-id]');
+  if(photoEl){
+    const post = postsCache.find(p => String(p.id) === String(photoEl.dataset.postId));
+    if(post) openLightbox(post.img, post.cap);
+    return;
+  }
   const likeBtn = e.target.closest('.like-btn');
   const repostBtn = e.target.closest('.repost-btn');
   const commentBtn = e.target.closest('.comment-btn');
@@ -1721,6 +1751,14 @@ async function openSettingsModal(){
   openOverlay('settingsOverlay');
 }
 
+/* ===================== Lightbox ===================== */
+function openLightbox(imgUrl, caption){
+  $('lightboxImg').src = imgUrl;
+  $('lightboxCaption').textContent = caption || '';
+  openOverlay('lightboxOverlay');
+}
+$('lightboxImg').addEventListener('click', () => closeOverlay('lightboxOverlay'));
+
 async function openProfileModal(username){
   const isMe = username === currentUser.username;
   await getAvatarUrl(username);
@@ -1891,8 +1929,14 @@ async function openProfileModal(username){
   } else {
     grid.innerHTML = userPosts.map(p => p.mediaType === 'video'
       ? `<video src="${p.img}" muted loop playsinline preload="metadata"></video>`
-      : `<img src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`
+      : `<img data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`
     ).join('');
+    grid.querySelectorAll('img[data-post-id]').forEach(img => {
+      img.addEventListener('click', () => {
+        const post = userPosts.find(p => String(p.id) === img.dataset.postId);
+        if(post) openLightbox(post.img, post.cap);
+      });
+    });
   }
 
   openOverlay('profileOverlay');
