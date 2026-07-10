@@ -174,7 +174,7 @@
   .inline-edit-btn:hover{ color:var(--accent); }
   .inline-edit-input{
     width:100%; background:var(--surface-2); border:1px solid var(--line);
-    color:var(--fg); padding:8px 10px; border-radius:8px; font-size:14px;
+    color:var(--fg); padding:10px 12px; border-radius:8px; font-size:16px;
     font-family:'Inter', sans-serif; margin-bottom:6px; resize:vertical;
   }
   .inline-edit-input:focus{ outline:none; border-color:var(--accent); }
@@ -212,10 +212,11 @@
   }
   .field input, .field textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--line);
-    color:var(--fg); padding:10px 12px; border-radius:10px; font-size:14px;
+    color:var(--fg); padding:12px 14px; border-radius:10px; font-size:16px;
     font-family:'Inter', sans-serif; resize:vertical;
   }
   .field input:focus, .field textarea:focus{ outline:none; border-color:var(--fg-dim); }
+  input, textarea{ font-size:16px; }
 
   .drop-zone{
     position:relative; width:100%; min-height:180px; border-radius:16px;
@@ -288,7 +289,7 @@
   }
   .chat-input-row input{
     flex:1; background:var(--surface-2); border:1px solid var(--line); color:var(--fg);
-    padding:10px 12px; border-radius:20px; font-size:13.5px; font-family:'Inter', sans-serif;
+    padding:11px 14px; border-radius:20px; font-size:16px; font-family:'Inter', sans-serif;
   }
   .chat-input-row input:focus{ outline:none; border-color:var(--fg-dim); }
   .chat-send{
@@ -354,6 +355,48 @@
     font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;
   }
   .footer-warning{ color:var(--fg-dim); opacity:0.7; max-width:400px; margin:6px auto 0; line-height:1.5; }
+  @media (max-width: 600px){
+    header{ padding:12px 12px; }
+    .wordmark{ font-size:21px; }
+    nav.top-actions{ gap:6px; }
+    .icon-btn{ width:42px; height:42px; }
+    .icon-btn svg{ width:20px; height:20px; }
+    .btn-ghost{ padding:9px 12px; font-size:13.5px; }
+    .btn-primary{ padding:11px 16px; font-size:14px; }
+
+    main{ padding:18px 12px 90px; }
+    .frame{ border-radius:16px; }
+    .frame-header{ padding:12px 14px; gap:10px; }
+    .avatar-badge{ width:34px; height:34px; font-size:15px; }
+    .author-link{ font-size:14px; }
+    .frame-date{ font-size:10px; }
+    .post-menu-btn{ font-size:15px; padding:6px; }
+    .frame-info{ padding:13px 15px 8px; }
+    .frame-info .cap{ font-size:14.5px; }
+    .frame-actions{ padding:8px 15px 15px; gap:20px; }
+    .action{ font-size:13.5px; gap:8px; }
+    .mark-wrap{ width:21px; height:21px; }
+
+    .overlay{ align-items:flex-end; padding:0; }
+    .overlay .modal{
+      max-width:100%; width:100%; max-height:90vh;
+      border-radius:22px 22px 0 0; padding:24px 18px 26px;
+    }
+    .modal .close{ top:16px; right:16px; font-size:22px; padding:6px; }
+    .chat-modal .modal{ border-radius:22px 22px 0 0; height:82vh; }
+
+    .row-btn{ padding:9px 15px; font-size:13.5px; }
+    .btn-primary.profile-actions, .profile-actions .btn-primary{ padding:13px; }
+    .user-row{ padding:12px 14px; font-size:14.5px; }
+
+    .search-panel{
+      position:fixed; top:auto; bottom:0; left:0; right:0; width:100%;
+      max-height:70vh; border-radius:22px 22px 0 0;
+    }
+
+    .swipe-stack{ height:56vh; }
+    .swipe-ctrl-btn{ width:58px; height:58px; }
+  }
 </style>
 </head>
 <body>
@@ -928,6 +971,7 @@ function logout(){
   showToast('Вы вышли');
 }
 
+let lastDevelopedPostId = null;
 function renderFeed(){
   const grid = $('grid');
   if(postsCache.length === 0){
@@ -935,13 +979,16 @@ function renderFeed(){
     return;
   }
   const sorted = [...postsCache].sort((a,b) => b.ts - a.ts);
+  const topPostId = sorted[0].id;
+  const isFirstRenderOfThisTop = topPostId !== lastDevelopedPostId;
+  lastDevelopedPostId = topPostId;
   grid.innerHTML = sorted.map((p, sortedIdx) => {
     const idx = postsCache.indexOf(p);
     const liked = currentUser && p.likedBy && p.likedBy.includes(currentUser.username);
     const reposted = currentUser && p.repostedBy && p.repostedBy.includes(currentUser.username);
     const canManage = currentUser && (p.author === currentUser.username || currentUser.isAdmin);
     const commentCount = commentCountsByPost[p.id] || 0;
-    const imgClass = (sortedIdx === 0 && p.mediaType !== 'video') ? 'developing' : '';
+    const imgClass = (sortedIdx === 0 && isFirstRenderOfThisTop && p.mediaType !== 'video') ? 'developing' : '';
     const mediaHtml = p.mediaType === 'video'
       ? `<video src="${p.img}" controls playsinline preload="metadata"></video>`
       : `<img class="${imgClass}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">`;
@@ -1017,6 +1064,7 @@ $('grid').addEventListener('click', async (e) => {
     if(pos === -1) post.likedBy.push(currentUser.username);
     else post.likedBy.splice(pos, 1);
     renderFeed();
+    lastFeedSignature = computeFeedSignature(postsCache);
     await updatePostReactions(post.id, post.likedBy, post.repostedBy);
   }
   if(repostBtn){
@@ -1027,6 +1075,7 @@ $('grid').addEventListener('click', async (e) => {
     if(pos === -1){ post.repostedBy.push(currentUser.username); showToast('Репост опубликован'); }
     else post.repostedBy.splice(pos, 1);
     renderFeed();
+    lastFeedSignature = computeFeedSignature(postsCache);
     await updatePostReactions(post.id, post.likedBy, post.repostedBy);
   }
   if(commentBtn){
@@ -1042,6 +1091,7 @@ $('grid').addEventListener('click', async (e) => {
       if(containsBannedWords(trimmed)){ showToast('В описании есть недопустимые слова'); return; }
       post.cap = trimmed;
       renderFeed();
+      lastFeedSignature = computeFeedSignature(postsCache);
       await updatePostCaption(postId, post.cap);
     }
   }
@@ -1053,6 +1103,7 @@ $('grid').addEventListener('click', async (e) => {
     if(ok){
       await deletePostById(post);
       await loadPosts();
+      lastFeedSignature = computeFeedSignature(postsCache);
       renderFeed();
       showToast('Публикация и файл удалены');
     }
@@ -1256,6 +1307,7 @@ $('postSubmit').addEventListener('click', async () => {
     await loadPosts();
     await loadAvatarsForUsers(postsCache.map(p => p.author));
     await loadCommentCounts(postsCache.map(p => p.id));
+    lastFeedSignature = computeFeedSignature(postsCache);
   }
 
   btn.disabled = false;
@@ -1784,6 +1836,7 @@ async function handleSwipeResult(post, action){
     if(!post.likedBy.includes(currentUser.username)){
       post.likedBy.push(currentUser.username);
       await updatePostReactions(post.id, post.likedBy, post.repostedBy);
+      lastFeedSignature = computeFeedSignature(postsCache);
     }
   }
   setTimeout(() => {
@@ -1806,6 +1859,12 @@ $('swipeNopeBtn').addEventListener('click', () => {
 });
 
 /* ===================== Init ===================== */
+let lastFeedSignature = '';
+
+function computeFeedSignature(posts){
+  return posts.map(p => `${p.id}:${(p.likedBy||[]).length}:${(p.repostedBy||[]).length}:${p.cap}`).join('|');
+}
+
 async function init(){
   $('grid').innerHTML = `<div class="empty-state"><span class="spinner"></span> Загружаю ленту...</div>`;
   const savedUsername = localStorage.getItem('artvane_username');
@@ -1818,15 +1877,20 @@ async function init(){
   await loadPosts();
   await loadAvatarsForUsers(postsCache.map(p => p.author));
   await loadCommentCounts(postsCache.map(p => p.id));
+  lastFeedSignature = computeFeedSignature(postsCache);
   renderFeed();
   await refreshBadges();
   feedPollTimer = setInterval(async () => {
     await loadPosts();
-    await loadAvatarsForUsers(postsCache.map(p => p.author));
-    await loadCommentCounts(postsCache.map(p => p.id));
-    renderFeed();
+    const newSignature = computeFeedSignature(postsCache);
+    if(newSignature !== lastFeedSignature){
+      lastFeedSignature = newSignature;
+      await loadAvatarsForUsers(postsCache.map(p => p.author));
+      await loadCommentCounts(postsCache.map(p => p.id));
+      renderFeed();
+    }
     await refreshBadges();
-  }, 8000);
+  }, 15000);
 }
 init();
 
