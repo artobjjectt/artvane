@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Artvane — прототип</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Artvane">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js"></script>
@@ -712,8 +718,20 @@ async function updatePostCaption(id, cap){
   const { error } = await sb.from('posts').update({ cap }).eq('id', id);
   return !error;
 }
-async function deletePostById(id){
-  const { error } = await sb.from('posts').delete().eq('id', id);
+function extractStoragePath(url, bucket){
+  if(!url) return null;
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const idx = url.indexOf(marker);
+  if(idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length));
+}
+async function deletePostById(post){
+  const path = extractStoragePath(post.img, 'post-images');
+  if(path){
+    const { error: storageError } = await sb.storage.from('post-images').remove([path]);
+    if(storageError) console.error('Не удалось удалить файл из хранилища', storageError);
+  }
+  const { error } = await sb.from('posts').delete().eq('id', post.id);
   return !error;
 }
 
@@ -1029,12 +1047,14 @@ $('grid').addEventListener('click', async (e) => {
   }
   if(deleteBtn){
     const postId = deleteBtn.dataset.delete;
-    const ok = await showConfirm('Удалить публикацию? Это нельзя отменить.', 'Удалить');
+    const post = postsCache.find(p => String(p.id) === String(postId));
+    if(!post) return;
+    const ok = await showConfirm('Удалить публикацию? Это нельзя отменить, файл тоже удалится с сервера.', 'Удалить');
     if(ok){
-      await deletePostById(postId);
+      await deletePostById(post);
       await loadPosts();
       renderFeed();
-      showToast('Публикация удалена');
+      showToast('Публикация и файл удалены');
     }
   }
 });
@@ -1414,8 +1434,16 @@ $('avatarFileInput').addEventListener('change', async () => {
 
   const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
   const avatarUrl = urlData.publicUrl;
+  const oldAvatarUrl = avatarsByUsername[currentUser.username];
   await sb.from('users').update({ avatar_url: avatarUrl }).eq('username', currentUser.username);
   avatarsByUsername[currentUser.username] = avatarUrl;
+  if(oldAvatarUrl){
+    const oldPath = extractStoragePath(oldAvatarUrl, 'avatars');
+    if(oldPath){
+      const { error: removeError } = await sb.storage.from('avatars').remove([oldPath]);
+      if(removeError) console.error('Не удалось удалить старый аватар', removeError);
+    }
+  }
 
   $('profileAvatar').innerHTML = avatarInnerHtml(currentUser.username);
   editBtn.textContent = originalIcon;
@@ -1801,6 +1829,12 @@ async function init(){
   }, 8000);
 }
 init();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration failed', err));
+  });
+}
 </script>
 
 </body>
