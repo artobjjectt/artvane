@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Artvane — прототип</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -76,7 +80,7 @@
   .grid{ display:flex; flex-direction:column; gap:20px; }
 
   .frame{
-    background:var(--surface); border:1px solid var(--line); border-radius:2px;
+    background:var(--surface); border:1px solid var(--line); border-radius:20px;
     overflow:hidden; position:relative;
   }
   .frame-strip{
@@ -86,9 +90,8 @@
   }
   .frame img{
     display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
-    filter: grayscale(80%) contrast(1.05); transition: filter .35s ease; background:#000;
+    background:#000;
   }
-  .frame:hover img{ filter:grayscale(35%) contrast(1.05); }
   .frame-info{ padding:11px 13px 6px; }
   .frame-info .cap{ font-size:13.5px; color:var(--fg); line-height:1.4; margin:0 0 4px; }
   .frame-info .author{ font-size:11.5px; color:var(--fg-dim); margin:0; }
@@ -123,7 +126,7 @@
   .overlay.open{ display:flex; }
   .modal{
     background:var(--surface); border:1px solid var(--line); width:100%; max-width:400px;
-    padding:28px 24px 24px; border-radius:3px; position:relative; max-height:86vh; overflow-y:auto;
+    padding:28px 24px 24px; border-radius:18px; position:relative; max-height:86vh; overflow-y:auto;
   }
   .modal .close{
     position:absolute; top:14px; right:16px; background:none; border:none;
@@ -141,7 +144,7 @@
   }
   .field input, .field textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--line);
-    color:var(--fg); padding:10px 12px; border-radius:2px; font-size:14px;
+    color:var(--fg); padding:10px 12px; border-radius:10px; font-size:14px;
     font-family:'Inter', sans-serif; resize:vertical;
   }
   .field input:focus, .field textarea:focus{ outline:none; border-color:var(--fg-dim); }
@@ -164,6 +167,14 @@
   .user-row:hover{ border-color:var(--fg-dim); }
   .user-row .unread-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); display:none; }
   .user-row.has-unread .unread-dot{ display:block; }
+  .row-btn{
+    background:none; border:1px solid var(--line); color:var(--fg-dim);
+    padding:5px 10px; border-radius:14px; font-size:11.5px; cursor:pointer;
+    font-family:'Inter', sans-serif;
+  }
+  .row-btn:hover{ color:var(--fg); border-color:var(--fg-dim); }
+  .row-btn.accent{ background:var(--fg); color:#0a0a0a; border:none; }
+  .row-btn:disabled{ opacity:0.5; cursor:default; }
 
   .chat-modal .modal{ display:flex; flex-direction:column; height:70vh; max-height:560px; padding:0; }
   .chat-head{
@@ -275,6 +286,21 @@
   </div>
 </div>
 
+<!-- Friends modal -->
+<div class="overlay" id="friendsOverlay">
+  <div class="modal">
+    <button class="close" data-close="friendsOverlay">✕</button>
+    <span class="eyebrow">Друзья</span>
+    <h2>Люди</h2>
+    <div id="pendingSection" style="display:none;">
+      <label style="display:block; font-size:11px; color:var(--fg-dim); margin-bottom:8px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">Заявки в друзья</label>
+      <div class="user-list" id="pendingList" style="margin-bottom:20px;"></div>
+    </div>
+    <label style="display:block; font-size:11px; color:var(--fg-dim); margin-bottom:8px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">Все пользователи</label>
+    <div class="user-list" id="allUsersList"></div>
+  </div>
+</div>
+
 <!-- DM list modal -->
 <div class="overlay" id="dmListOverlay">
   <div class="modal">
@@ -329,7 +355,7 @@ function closeOverlay(id){ $(id).classList.remove('open'); }
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -383,16 +409,77 @@ async function sendMessage(from, to, text){
   return !error;
 }
 
+/* ===================== Friends ===================== */
+async function sendFriendRequest(from, to){
+  const { error } = await sb.from('friends').insert({ requester: from, recipient: to, status: 'pending' });
+  return !error;
+}
+async function respondFriendRequest(id, status){
+  const { error } = await sb.from('friends').update({ status }).eq('id', id);
+  return !error;
+}
+async function getFriendStatus(username, otherUsername){
+  const { data, error } = await sb.from('friends')
+    .select('*')
+    .or(`and(requester.eq.${username},recipient.eq.${otherUsername}),and(requester.eq.${otherUsername},recipient.eq.${username})`)
+    .maybeSingle();
+  if(error) return null;
+  return data;
+}
+async function listPendingRequests(username){
+  const { data, error } = await sb.from('friends').select('*').eq('recipient', username).eq('status', 'pending');
+  if(error){ console.error(error); return []; }
+  return data;
+}
+
+/* ===================== Moderation ===================== */
+const BANNED_WORDS = [
+  'хуй','хуе','пизд','ебат','ебал','ебан','сука','блять','бляд','мудак','долбоёб','долбоеб',
+  'fuck','shit','bitch','asshole','nigger','faggot'
+];
+function containsBannedWords(text){
+  const normalized = text.toLowerCase().replace(/[^а-яa-z]/gi, '');
+  return BANNED_WORDS.some(w => normalized.includes(w));
+}
+
+let nsfwModel = null;
+async function getNsfwModel(){
+  if(nsfwModel) return nsfwModel;
+  try{
+    nsfwModel = await nsfwjs.load();
+  }catch(e){
+    console.error('NSFW model failed to load', e);
+    nsfwModel = null;
+  }
+  return nsfwModel;
+}
+async function isImageSafe(file){
+  const model = await getNsfwModel();
+  if(!model) return true; // fail open if model can't load, don't block posting entirely
+  const imgEl = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+  const predictions = await model.classify(imgEl);
+  URL.revokeObjectURL(imgEl.src);
+  const bad = predictions.find(p => (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.75);
+  return !bad;
+}
+
 function frameNumber(i){ return String(i+1).padStart(3,'0') + 'A'; }
 
 function renderTopBar(){
   const nav = $('topActions');
   if(currentUser){
     nav.innerHTML = `
+      <button class="icon-btn" id="friendsBtn" title="Друзья">👥</button>
       <button class="icon-btn" id="dmBtn" title="Сообщения">✉<span class="badge" id="dmBadge"></span></button>
       <button class="btn-ghost" id="newPostBtn">+ Пост</button>
       <button class="btn-ghost" id="logoutBtn">${currentUser.username}</button>
     `;
+    $('friendsBtn').addEventListener('click', openFriendsModal);
     $('dmBtn').addEventListener('click', openDmList);
     $('newPostBtn').addEventListener('click', () => openOverlay('postOverlay'));
     $('logoutBtn').addEventListener('click', logout);
@@ -404,6 +491,7 @@ function renderTopBar(){
 
 function logout(){
   currentUser = null;
+  localStorage.removeItem('artvane_username');
   renderTopBar();
   showToast('Вы вышли');
 }
@@ -551,6 +639,7 @@ $('authSubmit').addEventListener('click', async () => {
   closeOverlay('authOverlay');
   $('authUsername').value = '';
   $('authPassword').value = '';
+  localStorage.setItem('artvane_username', currentUser.username);
   renderTopBar();
   renderFeed();
 });
@@ -573,9 +662,23 @@ $('postSubmit').addEventListener('click', async () => {
     errEl.classList.add('show');
     return;
   }
+  if(containsBannedWords(cap)){
+    errEl.textContent = 'В подписи есть недопустимые слова, перепишите её';
+    errEl.classList.add('show');
+    return;
+  }
 
   const btn = $('postSubmit');
   btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> проверка...';
+
+  const safe = await isImageSafe(file);
+  if(!safe){
+    errEl.textContent = 'Это фото не подходит для публикации';
+    errEl.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Опубликовать';
+    return;
+  }
   btn.innerHTML = '<span class="spinner"></span>';
 
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -609,6 +712,74 @@ $('postSubmit').addEventListener('click', async () => {
     errEl.classList.add('show');
   }
 });
+
+/* ===================== Friends UI ===================== */
+async function openFriendsModal(){
+  const others = await listOtherUsers(currentUser.username);
+  const pending = await listPendingRequests(currentUser.username);
+
+  const pendingSection = $('pendingSection');
+  const pendingList = $('pendingList');
+  if(pending.length > 0){
+    pendingSection.style.display = 'block';
+    pendingList.innerHTML = pending.map(r => `
+      <div class="user-row">
+        <span>@${r.requester}</span>
+        <span style="display:flex; gap:6px;">
+          <button class="row-btn accent" data-accept="${r.id}">Принять</button>
+          <button class="row-btn" data-decline="${r.id}">Отклонить</button>
+        </span>
+      </div>
+    `).join('');
+    pendingList.querySelectorAll('[data-accept]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await respondFriendRequest(btn.dataset.accept, 'accepted');
+        showToast('Заявка принята');
+        openFriendsModal();
+      });
+    });
+    pendingList.querySelectorAll('[data-decline]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await respondFriendRequest(btn.dataset.decline, 'declined');
+        openFriendsModal();
+      });
+    });
+  } else {
+    pendingSection.style.display = 'none';
+  }
+
+  const allUsersList = $('allUsersList');
+  if(others.length === 0){
+    allUsersList.innerHTML = `<div class="empty-state" style="padding:20px;">Пока нет других пользователей.</div>`;
+  } else {
+    allUsersList.innerHTML = others.map(u => `<div class="user-row" data-username="${u}"><span>@${u}</span><span class="friend-slot" data-slot="${u}">...</span></div>`).join('');
+    for(const u of others){
+      const status = await getFriendStatus(currentUser.username, u);
+      const slot = allUsersList.querySelector(`[data-slot="${u}"]`);
+      if(!slot) continue;
+      if(!status){
+        slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
+      } else if(status.status === 'accepted'){
+        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Друзья ✓</span>`;
+      } else if(status.status === 'pending' && status.requester === currentUser.username){
+        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Заявка отправлена</span>`;
+      } else if(status.status === 'pending'){
+        slot.innerHTML = `<span style="color:var(--fg-dim); font-size:11.5px;">Ждёт вашего ответа</span>`;
+      } else {
+        slot.innerHTML = `<button class="row-btn" data-request="${u}">+ Добавить</button>`;
+      }
+    }
+    allUsersList.querySelectorAll('[data-request]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await sendFriendRequest(currentUser.username, btn.dataset.request);
+        showToast('Заявка отправлена');
+        openFriendsModal();
+      });
+    });
+  }
+
+  openOverlay('friendsOverlay');
+}
 
 /* ===================== DM ===================== */
 async function openDmList(){
@@ -653,6 +824,10 @@ async function sendChatMessage(){
   const input = $('chatInput');
   const text = input.value.trim();
   if(!text || !dmWithUser) return;
+  if(containsBannedWords(text)){
+    showToast('Сообщение содержит недопустимые слова');
+    return;
+  }
   input.value = '';
   await sendMessage(currentUser.username, dmWithUser, text);
   await renderChatMessages();
@@ -678,6 +853,12 @@ function stopDmDetailPoll(){
 /* ===================== Init ===================== */
 async function init(){
   $('grid').innerHTML = `<div class="empty-state"><span class="spinner"></span> Загружаю ленту...</div>`;
+  const savedUsername = localStorage.getItem('artvane_username');
+  if(savedUsername){
+    const existing = await findUser(savedUsername);
+    if(existing) currentUser = { username: savedUsername };
+    else localStorage.removeItem('artvane_username');
+  }
   renderTopBar();
   await loadPosts();
   renderFeed();
