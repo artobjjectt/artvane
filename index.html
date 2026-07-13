@@ -180,6 +180,12 @@
     display:block; width:100%; height:auto; max-height:520px; object-fit:cover;
     background:#000;
   }
+  .media-wrap{ position:relative; }
+  .expand-badge{
+    position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%;
+    background:rgba(10,10,10,0.55); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.25);
+    color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
   .frame-info{ padding:11px 13px 6px; }
   .frame-info .cap{ font-size:13.5px; color:var(--fg); line-height:1.4; margin:0 0 4px; }
   .frame-info .author{ font-size:11.5px; color:var(--fg-dim); margin:0; }
@@ -223,10 +229,15 @@
   .inline-edit-actions{ display:flex; gap:8px; margin-bottom:6px; }
   .profile-actions{ margin-bottom:18px; }
   .profile-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
-  .profile-grid img, .profile-grid video{
+  .profile-grid video{
     width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; cursor:pointer;
     background:var(--surface-2);
   }
+  .profile-grid .media-wrap{ aspect-ratio:1/1; border-radius:6px; overflow:hidden; }
+  .profile-grid .media-wrap img{
+    width:100%; height:100%; object-fit:cover; cursor:pointer; background:var(--surface-2);
+  }
+  .profile-grid .expand-badge{ width:24px; height:24px; top:6px; right:6px; }
 
   /* ---------- Overlay / Modal ---------- */
   .overlay{
@@ -368,6 +379,21 @@
     padding:0 16px;
   }
   .frame img[data-post-id], .profile-grid img{ cursor:zoom-in; }
+  .lightbox-counter{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); color:#fff;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; opacity:0.7; z-index:2;
+  }
+  .lightbox-nav-btn{
+    position:fixed; left:50%; transform:translateX(-50%); z-index:2;
+    background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2);
+    color:#fff; width:38px; height:38px; border-radius:50%; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lightbox-nav-prev{ top:56px; }
+  .lightbox-nav-next{ bottom:26px; }
+  @media (max-width: 600px){
+    .lightbox-nav-btn{ display:none; }
+  }
 
   .toast{
     position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -504,6 +530,7 @@
     .mark-wrap{ width:23px; height:23px; }
 
     .overlay{ align-items:flex-end; padding:0; }
+    .lightbox-overlay{ align-items:center !important; padding:16px !important; }
     .overlay .modal{
       max-width:100%; width:100%;
       max-height:calc(90vh - var(--keyboard-offset));
@@ -549,13 +576,20 @@
     <div>
       <h1 id="feedTitle">Artvane</h1>
     </div>
-    <button class="feed-mode-btn" id="feedModeBtn" title="Переключить на «Мир»">
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="9"/>
-        <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"/>
-      </svg>
-      <span id="feedModeLabel">Мир</span>
-    </button>
+    <div style="display:flex; gap:8px;">
+      <button class="feed-mode-btn" id="worldChatBtn" title="Мировой чат">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.7 8.7 0 0 1-3.4-.7L3 20l1-4.4A8.4 8.4 0 1 1 21 11.5Z"/>
+        </svg>
+      </button>
+      <button class="feed-mode-btn" id="feedModeBtn" title="Переключить на «Мир»">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z"/>
+        </svg>
+        <span id="feedModeLabel">Мир</span>
+      </button>
+    </div>
   </div>
   <div class="grid" id="grid"></div>
 </main>
@@ -580,7 +614,12 @@
       <label>Пароль</label>
       <div class="search-input-wrap">
         <input type="password" id="authPassword" placeholder="••••••••" style="padding-right:40px;">
-        <button type="button" class="password-toggle-btn" id="passwordToggleBtn" title="Показать пароль">👁</button>
+        <button type="button" class="password-toggle-btn" id="passwordToggleBtn" title="Показать пароль">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" id="passwordEyeIcon">
+            <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </div>
     <div class="field-error" id="authError">Неверные данные</div>
@@ -614,7 +653,11 @@
     </div>
     <div class="field">
       <label>Описание</label>
-      <textarea id="postCap" rows="3" placeholder="Добавьте описание к публикации... (необязательно)"></textarea>
+      <div style="position:relative;">
+        <textarea id="postCap" rows="3" placeholder="Добавьте описание к публикации... (необязательно)" style="padding-right:40px;"></textarea>
+        <button type="button" class="emoji-toggle-btn" id="postCapEmojiBtn" style="position:absolute; right:2px; top:2px;">😊</button>
+      </div>
+      <div class="emoji-panel" id="postCapEmojiPanel"></div>
     </div>
     <div class="field-error" id="postError">Заполните оба поля</div>
     <button class="btn-primary" id="postSubmit">Опубликовать</button>
@@ -708,7 +751,12 @@
   <div class="modal">
     <button class="close" data-close="dmListOverlay">✕</button>
     <span class="eyebrow">Сообщения</span>
-    <h2>Написать</h2>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+      <h2 style="margin:0;">Написать</h2>
+      <button class="icon-btn" id="dmNewChatBtn" title="Новый чат" style="width:34px; height:34px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
     <div class="user-list" id="userList"></div>
   </div>
 </div>
@@ -730,6 +778,23 @@
   </div>
 </div>
 
+<!-- World Chat modal -->
+<div class="overlay chat-modal" id="worldChatOverlay">
+  <div class="modal">
+    <div class="chat-head">
+      <button class="chat-back" data-close="worldChatOverlay">←</button>
+      <span>🌍 Мировой чат</span>
+    </div>
+    <div class="chat-messages" id="worldChatMessages"></div>
+    <div class="emoji-panel" id="worldChatEmojiPanel"></div>
+    <div class="chat-input-row">
+      <button class="emoji-toggle-btn" id="worldChatEmojiToggleBtn" type="button">😊</button>
+      <input type="text" id="worldChatInput" placeholder="Сообщение всему миру...">
+      <button class="chat-send" id="worldChatSend">➤</button>
+    </div>
+  </div>
+</div>
+
 <!-- Comments modal -->
 <div class="overlay chat-modal" id="commentsOverlay">
   <div class="modal">
@@ -738,7 +803,9 @@
       <span>Комментарии</span>
     </div>
     <div class="chat-messages" id="commentsList"></div>
+    <div class="emoji-panel" id="commentEmojiPanel"></div>
     <div class="chat-input-row">
+      <button class="emoji-toggle-btn" id="commentEmojiToggleBtn" type="button">😊</button>
       <input type="text" id="commentInput" placeholder="Написать комментарий...">
       <button class="chat-send" id="commentSend">➤</button>
     </div>
@@ -748,10 +815,17 @@
 <!-- Photo lightbox -->
 <div class="overlay lightbox-overlay" id="lightboxOverlay">
   <button class="close" data-close="lightboxOverlay" style="color:#fff; z-index:2;">✕</button>
+  <span id="lightboxCounter" class="lightbox-counter"></span>
+  <button class="lightbox-nav-btn lightbox-nav-prev" id="lightboxPrevBtn" title="Предыдущее">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+  </button>
   <div class="lightbox-content">
     <img id="lightboxImg" src="" alt="">
     <p id="lightboxCaption"></p>
   </div>
+  <button class="lightbox-nav-btn lightbox-nav-next" id="lightboxNextBtn" title="Следующее">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
 </div>
 
 <!-- Settings modal -->
@@ -870,7 +944,7 @@ function showConfirm(message, okLabel){
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => closeOverlay(btn.dataset.close));
 });
-[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay','settingsOverlay','lightboxOverlay' ].forEach(id => {
+[ 'authOverlay','postOverlay','dmListOverlay','friendsOverlay','profileOverlay','commentsOverlay','swipeOverlay','promptOverlay','settingsOverlay','lightboxOverlay','worldChatOverlay' ].forEach(id => {
   $(id).addEventListener('click', (e) => { if(e.target.id === id) closeOverlay(id); });
 });
 
@@ -1001,6 +1075,39 @@ async function sendMessage(from, to, text){
 }
 async function countUnreadMessages(username){
   const { count, error } = await sb.from('messages').select('id', { count: 'exact', head: true }).eq('to_user', username).eq('read', false);
+  if(error){ console.error(error); return 0; }
+  return count || 0;
+}
+
+/* ===================== World Chat ===================== */
+async function loadWorldChatMessages(){
+  const { data, error } = await sb.from('world_chat_messages')
+    .select('*')
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if(error){ console.error(error); return []; }
+  return data;
+}
+async function sendWorldChatMessage(author, text){
+  const { error } = await sb.from('world_chat_messages').insert({ author, text });
+  return !error;
+}
+
+/* ===================== Follows ===================== */
+async function followUser(follower, followed){
+  const { error } = await sb.from('follows').insert({ follower, followed });
+  return !error;
+}
+async function unfollowUser(follower, followed){
+  const { error } = await sb.from('follows').delete().eq('follower', follower).eq('followed', followed);
+  return !error;
+}
+async function isFollowing(follower, followed){
+  const { data } = await sb.from('follows').select('*').eq('follower', follower).eq('followed', followed).maybeSingle();
+  return !!data;
+}
+async function countFollowers(username){
+  const { count, error } = await sb.from('follows').select('id', { count: 'exact', head: true }).eq('followed', username);
   if(error){ console.error(error); return 0; }
   return count || 0;
 }
@@ -1143,8 +1250,10 @@ function updateFeedModeUI(){
   const btn = $('feedModeBtn');
   const label = $('feedModeLabel');
   const title = $('feedTitle');
-  if(!currentUser){ btn.style.display = 'none'; title.textContent = 'Лента'; return; }
+  const worldChatBtn = $('worldChatBtn');
+  if(!currentUser){ btn.style.display = 'none'; worldChatBtn.style.display = 'none'; title.textContent = 'Лента'; return; }
   btn.style.display = 'flex';
+  worldChatBtn.style.display = 'flex';
   if(feedMode === 'home'){
     label.textContent = 'Мир';
     btn.classList.remove('active');
@@ -1162,6 +1271,44 @@ $('feedModeBtn').addEventListener('click', async () => {
   updateFeedModeUI();
   lastFeedSignature = '';
   renderFeed();
+});
+$('worldChatBtn').addEventListener('click', openWorldChat);
+
+let worldChatPollTimer = null;
+async function openWorldChat(){
+  await renderWorldChatMessages();
+  openOverlay('worldChatOverlay');
+  clearInterval(worldChatPollTimer);
+  worldChatPollTimer = setInterval(renderWorldChatMessages, 4000);
+}
+async function renderWorldChatMessages(){
+  const messages = await loadWorldChatMessages();
+  await loadAvatarsForUsers(messages.map(m => m.author));
+  const el = $('worldChatMessages');
+  const wasAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+  el.innerHTML = messages.map(m => `
+    <div class="msg ${currentUser && m.author === currentUser.username ? 'mine' : 'theirs'}" style="align-self:${currentUser && m.author === currentUser.username ? 'flex-end' : 'flex-start'};">
+      <strong style="font-size:11.5px; opacity:0.8;">${escapeHtml(displayNameFor(m.author))}</strong><br>
+      ${escapeHtml(m.text)}
+      <div class="msg-time">${new Date(m.created_at).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}</div>
+    </div>
+  `).join('') || `<div class="empty-state" style="padding:20px;">Пока тихо. Напишите первым!</div>`;
+  if(wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+$('worldChatSend').addEventListener('click', sendWorldChatMessageHandler);
+$('worldChatInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') sendWorldChatMessageHandler(); });
+async function sendWorldChatMessageHandler(){
+  if(!currentUser) return;
+  const input = $('worldChatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  if(containsBannedWords(text)){ showToast('Сообщение содержит недопустимые слова'); return; }
+  input.value = '';
+  await sendWorldChatMessage(currentUser.username, text);
+  await renderWorldChatMessages();
+}
+document.querySelectorAll('[data-close="worldChatOverlay"]').forEach(btn => {
+  btn.addEventListener('click', () => clearInterval(worldChatPollTimer));
 });
 
 function renderTopBar(){
@@ -1306,8 +1453,7 @@ async function refreshMyFriendsSet(){
 }
 
 let lastDevelopedPostId = null;
-function renderFeed(){
-  const grid = $('grid');
+function getVisiblePosts(){
   const allSorted = [...postsCache].sort((a,b) => b.ts - a.ts);
   let sorted = allSorted.filter(p => !blockedUsernames.has(p.author));
   if(currentUser){
@@ -1319,6 +1465,12 @@ function renderFeed(){
   } else {
     sorted = sorted.filter(p => !isPrivateByUsername[p.author]);
   }
+  return sorted;
+}
+
+function renderFeed(){
+  const grid = $('grid');
+  const sorted = getVisiblePosts();
   if(sorted.length === 0){
     const msg = feedMode === 'home'
       ? 'Пока нет публикаций от вас и друзей.<br>Загляните в «Мир» 🌍, чтобы увидеть всех.'
@@ -1338,13 +1490,19 @@ function renderFeed(){
     const imgClass = (sortedIdx === 0 && isFirstRenderOfThisTop && p.mediaType !== 'video') ? 'developing' : '';
     const mediaHtml = p.mediaType === 'video'
       ? `<video src="${p.img}" controls playsinline preload="metadata"></video>`
-      : `<img class="${imgClass}" data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">`;
+      : `<div class="media-wrap">
+           <img class="${imgClass}" data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${p.cap}" onerror="this.style.display='none'">
+           <button class="expand-badge" data-expand="${p.id}" title="Открыть">
+             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/>
+             </svg>
+           </button>
+         </div>`;
     return `
       <div class="frame">
         <div class="frame-header">
           <button class="avatar-badge" data-profile="${p.author}">${avatarInnerHtml(p.author)}</button>
           <button class="author-link" data-profile="${p.author}">${escapeHtml(displayNameFor(p.author))}</button>
-          <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
           ${canManage ? `
             <button class="post-menu-btn" data-edit="${p.id}" title="Изменить описание">✎</button>
             <button class="post-menu-btn" data-delete="${p.id}" title="Удалить">🗑</button>
@@ -1374,6 +1532,7 @@ function renderFeed(){
             </svg>
             <span>${commentCount}</span>
           </button>
+          <span class="frame-date">${new Date(p.ts).toLocaleDateString('ru-RU')}</span>
         </div>
       </div>
     `;
@@ -1388,9 +1547,12 @@ function escapeHtml(str){
 
 $('grid').addEventListener('click', async (e) => {
   const photoEl = e.target.closest('img[data-post-id]');
-  if(photoEl){
-    const post = postsCache.find(p => String(p.id) === String(photoEl.dataset.postId));
-    if(post) openLightbox(post.img, post.cap);
+  const expandEl = e.target.closest('[data-expand]');
+  if(photoEl || expandEl){
+    const postId = photoEl ? photoEl.dataset.postId : expandEl.dataset.expand;
+    const imageItems = getVisiblePosts().filter(p => p.mediaType !== 'video').map(p => ({ id: p.id, img: p.img, cap: p.cap }));
+    const startIndex = imageItems.findIndex(it => String(it.id) === String(postId));
+    if(startIndex !== -1) openLightbox(imageItems, startIndex);
     return;
   }
   const likeBtn = e.target.closest('.like-btn');
@@ -1486,8 +1648,8 @@ $('authSwitchBtn').addEventListener('click', () => setAuthMode(authMode === 'log
 $('passwordToggleBtn').addEventListener('click', () => {
   const input = $('authPassword');
   const btn = $('passwordToggleBtn');
-  if(input.type === 'password'){ input.type = 'text'; btn.style.opacity = '1'; }
-  else { input.type = 'password'; btn.style.opacity = '0.7'; }
+  if(input.type === 'password'){ input.type = 'text'; btn.style.color = 'var(--accent)'; }
+  else { input.type = 'password'; btn.style.color = ''; }
 });
 
 $('authSubmit').addEventListener('click', async () => {
@@ -1751,12 +1913,49 @@ async function openSettingsModal(){
   openOverlay('settingsOverlay');
 }
 
-/* ===================== Lightbox ===================== */
-function openLightbox(imgUrl, caption){
-  $('lightboxImg').src = imgUrl;
-  $('lightboxCaption').textContent = caption || '';
+/* ===================== Lightbox (swipeable carousel) ===================== */
+let lightboxItems = [];
+let lightboxIndex = 0;
+
+function openLightbox(items, startIndex){
+  lightboxItems = items;
+  lightboxIndex = startIndex || 0;
+  renderLightboxItem();
   openOverlay('lightboxOverlay');
 }
+function renderLightboxItem(){
+  const item = lightboxItems[lightboxIndex];
+  if(!item) return;
+  $('lightboxImg').src = item.img;
+  $('lightboxCaption').textContent = item.cap || '';
+  $('lightboxCounter').textContent = lightboxItems.length > 1 ? `${lightboxIndex + 1} / ${lightboxItems.length}` : '';
+  $('lightboxPrevBtn').style.visibility = lightboxIndex > 0 ? 'visible' : 'hidden';
+  $('lightboxNextBtn').style.visibility = lightboxIndex < lightboxItems.length - 1 ? 'visible' : 'hidden';
+}
+function lightboxNext(){
+  if(lightboxIndex < lightboxItems.length - 1){ lightboxIndex++; renderLightboxItem(); }
+}
+function lightboxPrev(){
+  if(lightboxIndex > 0){ lightboxIndex--; renderLightboxItem(); }
+}
+$('lightboxNextBtn').addEventListener('click', (e) => { e.stopPropagation(); lightboxNext(); });
+$('lightboxPrevBtn').addEventListener('click', (e) => { e.stopPropagation(); lightboxPrev(); });
+
+let lightboxTouchStartY = 0;
+$('lightboxOverlay').addEventListener('touchstart', (e) => {
+  lightboxTouchStartY = e.touches[0].clientY;
+}, { passive: true });
+$('lightboxOverlay').addEventListener('touchend', (e) => {
+  const deltaY = e.changedTouches[0].clientY - lightboxTouchStartY;
+  if(Math.abs(deltaY) < 45) return;
+  if(deltaY < 0) lightboxNext(); else lightboxPrev();
+});
+document.addEventListener('keydown', (e) => {
+  if(!$('lightboxOverlay').classList.contains('open')) return;
+  if(e.key === 'ArrowDown' || e.key === 'ArrowRight') lightboxNext();
+  if(e.key === 'ArrowUp' || e.key === 'ArrowLeft') lightboxPrev();
+  if(e.key === 'Escape') closeOverlay('lightboxOverlay');
+});
 $('lightboxImg').addEventListener('click', () => closeOverlay('lightboxOverlay'));
 
 async function openProfileModal(username){
@@ -1815,7 +2014,8 @@ async function openProfileModal(username){
   };
 
   const userPosts = postsCache.filter(p => p.author === username).sort((a,b) => b.ts - a.ts);
-  $('profilePostCount').textContent = `${userPosts.length} ${pluralPosts(userPosts.length)}`;
+  const followerCount = await countFollowers(username);
+  $('profilePostCount').textContent = `${userPosts.length} ${pluralPosts(userPosts.length)} · ${followerCount} подписчиков`;
 
   const actions = $('profileActions');
   if(isMe){
@@ -1867,16 +2067,25 @@ async function openProfileModal(username){
         else if(status.status === 'pending' && status.requester === currentUser.username) friendBtnHtml = `<span class="btn-ghost" style="cursor:default;">Заявка отправлена</span>`;
         else if(status.status === 'pending') friendBtnHtml = `<button class="btn-ghost" id="profileFriendBtn">Принять заявку</button>`;
       }
+      const following = await isFollowing(currentUser.username, username);
       actions.innerHTML = `
         <div style="display:flex; gap:8px; margin-bottom:8px;">
           <button class="btn-primary" id="profileMsgBtn" style="flex:1;">Написать</button>
           ${friendBtnHtml}
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="row-btn" id="followBtn" style="flex:1;${following ? ' color:var(--accent); border-color:var(--accent);' : ''}">${following ? 'Отписаться' : '+ Подписаться'}</button>
         </div>
         <div style="display:flex; gap:8px;">
           ${showUnfriend ? `<button class="row-btn" id="unfriendBtn" style="flex:1;">Убрать из друзей</button>` : ''}
           <button class="row-btn" id="blockBtn" style="flex:1; color:var(--accent); border-color:var(--accent);">Заблокировать</button>
         </div>
       `;
+      $('followBtn').addEventListener('click', async () => {
+        if(following) await unfollowUser(currentUser.username, username);
+        else await followUser(currentUser.username, username);
+        openProfileModal(username);
+      });
       $('profileMsgBtn').addEventListener('click', () => {
         closeOverlay('profileOverlay');
         openChat(username);
@@ -1929,12 +2138,21 @@ async function openProfileModal(username){
   } else {
     grid.innerHTML = userPosts.map(p => p.mediaType === 'video'
       ? `<video src="${p.img}" muted loop playsinline preload="metadata"></video>`
-      : `<img data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">`
+      : `<div class="media-wrap">
+           <img data-post-id="${p.id}" src="${p.img}" loading="lazy" alt="${escapeHtml(p.cap)}">
+           <button class="expand-badge" data-expand="${p.id}" title="Открыть">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/>
+             </svg>
+           </button>
+         </div>`
     ).join('');
-    grid.querySelectorAll('img[data-post-id]').forEach(img => {
-      img.addEventListener('click', () => {
-        const post = userPosts.find(p => String(p.id) === img.dataset.postId);
-        if(post) openLightbox(post.img, post.cap);
+    const profileImageItems = userPosts.filter(p => p.mediaType !== 'video').map(p => ({ id: p.id, img: p.img, cap: p.cap }));
+    grid.querySelectorAll('[data-post-id], [data-expand]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.postId || el.dataset.expand;
+        const startIndex = profileImageItems.findIndex(it => String(it.id) === String(id));
+        if(startIndex !== -1) openLightbox(profileImageItems, startIndex);
       });
     });
   }
@@ -2138,6 +2356,10 @@ $('userSearchInput').addEventListener('input', () => {
 });
 
 /* ===================== DM ===================== */
+$('dmNewChatBtn').addEventListener('click', () => {
+  closeOverlay('dmListOverlay');
+  openSearchPanel();
+});
 async function openDmList(){
   const conversations = await listConversations(currentUser.username);
   const listEl = $('userList');
@@ -2242,18 +2464,24 @@ const EMOJI_LIST = [
   '🔥','✨','🎉','🎊','💯','⭐','🌟','💫','☕','🍕','🍔','🍰','🎂','🍿','🍫','🍩',
   '🐶','🐱','🦊','🐻','🐼','🦄','🌸','🌈','☀️','🌙','⚡','💧','🎶','📸','🎁','💌'
 ];
-const emojiPanel = $('emojiPanel');
-emojiPanel.innerHTML = EMOJI_LIST.map(e => `<button type="button">${e}</button>`).join('');
-emojiPanel.addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if(!btn) return;
-  const input = $('chatInput');
-  input.value += btn.textContent;
-  input.focus();
-});
-$('emojiToggleBtn').addEventListener('click', () => {
-  emojiPanel.classList.toggle('open');
-});
+function setupEmojiPicker(toggleBtnId, panelId, targetInputId){
+  const toggleBtn = $(toggleBtnId);
+  const panel = $(panelId);
+  const target = $(targetInputId);
+  if(!toggleBtn || !panel || !target) return;
+  panel.innerHTML = EMOJI_LIST.map(e => `<button type="button">${e}</button>`).join('');
+  panel.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    target.value += btn.textContent;
+    target.focus();
+  });
+  toggleBtn.addEventListener('click', () => panel.classList.toggle('open'));
+}
+setupEmojiPicker('emojiToggleBtn', 'emojiPanel', 'chatInput');
+setupEmojiPicker('commentEmojiToggleBtn', 'commentEmojiPanel', 'commentInput');
+setupEmojiPicker('postCapEmojiBtn', 'postCapEmojiPanel', 'postCap');
+setupEmojiPicker('worldChatEmojiToggleBtn', 'worldChatEmojiPanel', 'worldChatInput');
 
 $('chatBack').addEventListener('click', () => {
   closeOverlay('chatOverlay');
